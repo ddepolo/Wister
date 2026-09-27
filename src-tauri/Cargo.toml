@@ -1,0 +1,42 @@
+[package]
+name = "wister-app"
+description = "App de bandeja de Wister: dictado por voz local"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "wister-app"
+path = "src/main.rs"
+
+[features]
+# Mismos backends de GPU que wister-core (ver docs/fase-0.md para los requisitos).
+vulkan = ["wister-core/vulkan"]
+cuda = ["wister-core/cuda"]
+
+[build-dependencies]
+tauri-build = { version = "2.7", features = [] }
+
+[dependencies]
+tauri = { version = "2.12", features = ["tray-icon"] }
+wister-core = { path = "../crates/wister-core" }
+anyhow = "1"
+serde = { version = "1", features = ["derive"] }
+tauri-plugin-single-instance = "2"
+serde_json = "1.0.151"
+tauri-plugin-autostart = "2"
+
+[target.'cfg(windows)'.dependencies]
+windows-sys = { version = "0.61", features = [
+  "Win32_Foundation",
+  "Win32_Media_Audio",
+  "Win32_Security",
+  "Win32_System_DataExchange",
+  "Win32_System_LibraryLoader",
+  "Win32_System_Memory",
+  "Win32_System_Threading",
+  "Win32_UI_Input",
+  "Win32_UI_Input_KeyboardAndMouse",
+  "Win32_UI_WindowsAndMessaging",
+] }

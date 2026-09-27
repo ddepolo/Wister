@@ -1,0 +1,21 @@
+[package]
+name = "wister-cli"
+description = "CLI de prueba de concepto de Wister (Fase 0)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "wister"
+path = "src/main.rs"
+
+[features]
+cuda = ["wister-core/cuda"]
+vulkan = ["wister-core/vulkan"]
+
+[dependencies]
+wister-core = { path = "../wister-core" }
+anyhow = "1"
+clap = { version = "4", features = ["derive"] }
+indicatif = "0.18"

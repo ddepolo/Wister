@@ -1,0 +1,23 @@
+[package]
+name = "wister-core"
+description = "Captura de audio y transcripción local con Whisper para Wister"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[features]
+default = []
+cuda = ["whisper-rs/cuda"]
+vulkan = ["whisper-rs/vulkan"]
+
+[dependencies]
+anyhow = "1"
+cpal = "0.18"
+rubato = "5"
+hound = "3.5"
+whisper-rs = "0.16"
+reqwest = { version = "0.13", default-features = false, features = ["blocking", "rustls", "system-proxy"] }
+sha1 = "0.11"
+directories = "6"
+ringbuf = "0.5"

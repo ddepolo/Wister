@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  linux:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy, rustfmt
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      # libasound2 para cpal; el resto para Tauri (WebKitGTK, bandeja).
+      - run: >-
+          sudo apt-get update && sudo apt-get install -y libasound2-dev
+          libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev libxdo-dev libssl-dev
+      # tauri::generate_context! necesita el frontend ya compilado en dist/.
+      - run: npm ci && npm run check && npm run build
+      - run: cargo fmt --check
+      - run: cargo clippy --all-targets -- -D warnings
+      - run: cargo test
+
+  windows:
+    runs-on: windows-latest
+    env:
+      # Instrucciones de CPU fijas en vez de las del runner, para que el .exe
+      # funcione en cualquier x64 con AVX2 (Intel Haswell / AMD Zen o más nuevo).
+      GGML_NATIVE: "OFF"
+      GGML_AVX: "ON"
+      GGML_AVX2: "ON"
+      GGML_FMA: "ON"
+      GGML_F16C: "ON"
+      # El crate `cmake` pisa los flags de Release con los de `cc`, que en MSVC
+      # no traen /O2: sin esto whisper.cpp queda sin optimizar (~8x más lento en CPU).
+      CMAKE_C_FLAGS_RELEASE: "/MD /O2 /Ob2 /DNDEBUG"
+      CMAKE_CXX_FLAGS_RELEASE: "/MD /O2 /Ob2 /DNDEBUG"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci && npm run build
+      - run: cargo test
+      - run: cargo build --release -p wister-cli
+      - uses: actions/upload-artifact@v4
+        with:
+          name: wister-windows-x64-cpu
+          path: target/release/wister.exe
