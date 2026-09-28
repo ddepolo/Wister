@@ -9,6 +9,8 @@ Los cambios de cada versión. El formato sigue [Keep a Changelog](https://keepac
 - Registro de funcionamiento en `%LOCALAPPDATA%\ar.wister.app\logs\wister.log`: datos de la PC al arrancar, carga de cada modelo (backend y memoria), tiempos de cada dictado, micrófono usado y errores. Nunca guarda el texto dictado. Al pasar de 2 MB se empieza uno nuevo y se conserva el anterior.
 - Configuración → Diagnóstico → **Prueba de rendimiento**: se lee una frase y Wister la transcribe con cada modelo descargado, con GPU y con CPU; muestra la espera, el porcentaje de palabras acertadas y la carga de cada uno, y recomienda el que mejor anda en esa PC.
 - Configuración → Diagnóstico → **Exportar diagnóstico**: guarda en Descargas un archivo de texto con los datos de la PC (Windows, CPU, RAM, placas de video y la GPU que usa Whisper), la configuración, los modelos, los micrófonos y el registro, para pedir ayuda desde otra máquina.
+- Elegir el micrófono desde la bandeja: clic derecho → Micrófono, con "Predeterminado de Windows" y los que estén conectados (la lista se actualiza sola al enchufar uno).
+- Configuración: volumen del micrófono (el mismo de Windows), aviso con un botón para activarlo si está silenciado, y un medidor de nivel con "Probar".
 
 ### Cambiado
 

@@ -2,6 +2,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod actualizar;
+mod bandeja;
 mod config;
 mod diagnostico;
 mod dictado;
@@ -13,19 +14,16 @@ mod registro;
 mod rendimiento;
 mod sistema;
 mod sonidos;
+mod volumen;
 
-use tauri::menu::{Menu, MenuItem};
-use tauri::tray::{MouseButton, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Manager, WindowEvent};
-
-const VENTANA_CONFIG: &str = "config";
 
 fn main() {
     tauri::Builder::default()
         // Una segunda instancia instalaría otro hook y cada dictado se pegaría dos veces:
         // en su lugar, se muestra la ventana de la que ya está corriendo.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            mostrar_config(app)
+            bandeja::mostrar_config(app)
         }))
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
@@ -58,6 +56,8 @@ fn main() {
             rendimiento::iniciar_prueba_rendimiento,
             rendimiento::medir_prueba_rendimiento,
             rendimiento::cancelar_prueba_rendimiento,
+            volumen::obtener_volumen,
+            volumen::cambiar_volumen,
         ])
         .setup(|app| {
             if let Some(carpeta) = registro::carpeta(app.handle()) {
@@ -68,7 +68,7 @@ fn main() {
                 app.package_info().version,
                 wister_core::stt::gpu_backend().unwrap_or("solo CPU")
             );
-            crear_bandeja(app.handle())?;
+            bandeja::crear(app.handle())?;
             overlay::preparar(app.handle())?;
             iniciar_dictado(app.handle())?;
             Ok(())
@@ -90,43 +90,11 @@ fn salir(app: AppHandle) {
     app.exit(0);
 }
 
-fn crear_bandeja(app: &AppHandle) -> tauri::Result<()> {
-    let config = MenuItem::with_id(app, "config", "Abrir Wister", true, None::<&str>)?;
-    let salir = MenuItem::with_id(app, "salir", "Salir", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&config, &salir])?;
-
-    let mut bandeja = TrayIconBuilder::with_id("wister")
-        .tooltip("Wister")
-        .menu(&menu)
-        // El menú queda en el clic derecho: con el izquierdo, el primer clic abriría el
-        // menú y el doble clic nunca llegaría.
-        .show_menu_on_left_click(false)
-        .on_tray_icon_event(|bandeja, event| {
-            if let TrayIconEvent::DoubleClick {
-                button: MouseButton::Left,
-                ..
-            } = event
-            {
-                mostrar_config(bandeja.app_handle());
-            }
-        })
-        .on_menu_event(|app, event| match event.id.as_ref() {
-            "config" => mostrar_config(app),
-            "salir" => app.exit(0),
-            _ => {}
-        });
-    if let Some(icono) = app.default_window_icon() {
-        bandeja = bandeja.icon(icono.clone());
-    }
-    bandeja.build(app)?;
-    Ok(())
-}
-
 fn iniciar_dictado(app: &AppHandle) -> anyhow::Result<()> {
     let config = config::cargar(app);
     app.manage(config::ConfigActual(std::sync::Mutex::new(config.clone())));
     if !config.asistente_completo {
-        mostrar_config(app);
+        bandeja::mostrar_config(app);
     }
 
     let (tx, rx) = std::sync::mpsc::channel();
@@ -138,12 +106,4 @@ fn iniciar_dictado(app: &AppHandle) -> anyhow::Result<()> {
     #[cfg(not(windows))]
     drop(tx);
     dictado::iniciar(app.clone(), rx, config)
-}
-
-fn mostrar_config(app: &AppHandle) {
-    if let Some(ventana) = app.get_webview_window(VENTANA_CONFIG) {
-        let _ = ventana.show();
-        let _ = ventana.unminimize();
-        let _ = ventana.set_focus();
-    }
 }

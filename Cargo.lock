@@ -6044,6 +6044,7 @@ dependencies = [
  "tauri-plugin-autostart",
  "tauri-plugin-single-instance",
  "tauri-plugin-updater",
+ "windows",
  "windows-sys 0.61.2",
  "wister-core",
 ]

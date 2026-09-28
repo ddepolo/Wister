@@ -2,15 +2,28 @@
   import { getVersion } from "@tauri-apps/api/app";
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
-  import { onMount } from "svelte";
+  import { onMount, untrack } from "svelte";
   import CapturaAtajo from "./CapturaAtajo.svelte";
   import Rendimiento from "./Rendimiento.svelte";
-  import { IDIOMAS, type Config, type Descarga, type Microfono, type Modelo } from "./tipos";
+  import {
+    IDIOMAS,
+    type Config,
+    type Descarga,
+    type Microfono,
+    type Modelo,
+    type Volumen,
+  } from "./tipos";
 
   let {
     config,
     cambiar,
-  }: { config: Config; cambiar: (cambios: Partial<Config>) => Promise<void> } = $props();
+    visible,
+  }: {
+    config: Config;
+    cambiar: (cambios: Partial<Config>) => Promise<void>;
+    /** Si la sección se ve: el medidor se apaga al salir, para no dejar el micrófono abierto. */
+    visible: boolean;
+  } = $props();
 
   let version = $state("");
   let modelos = $state<Modelo[]>([]);
@@ -22,6 +35,10 @@
     tipo: "inactivo",
   });
   let error = $state("");
+  let volumen = $state<Volumen | null>(null);
+  let errorVolumen = $state("");
+  let probando = $state(false);
+  let nivel = $state(0);
 
   type Actualizacion =
     | { tipo: "inactiva" | "buscando" | "al_dia" }
@@ -40,6 +57,10 @@
     refrescar();
     // Al volver a la ventana se releen los micrófonos: puede que se haya enchufado uno.
     window.addEventListener("focus", refrescar);
+    window.addEventListener("blur", dejarDeProbar);
+    const medidor = listen<number>("nivel_prueba", ({ payload }) => {
+      if (probando) nivel = Math.min(1, Math.sqrt(payload / 0.12));
+    });
     const progreso = listen<{ bajado: number; total: number | null }>(
       "actualizacion",
       ({ payload }) => {
@@ -62,6 +83,9 @@
     });
     return () => {
       window.removeEventListener("focus", refrescar);
+      window.removeEventListener("blur", dejarDeProbar);
+      medidor.then((dejar) => dejar());
+      dejarDeProbar();
       escucha.then((dejar) => dejar());
       progreso.then((dejar) => dejar());
     };
@@ -72,6 +96,79 @@
     invoke<Microfono[]>("listar_microfonos")
       .then((m) => (microfonos = m))
       .catch((e) => (error = String(e)));
+    // El volumen también se puede haber cambiado desde Windows.
+    leerVolumen(config.microfono);
+  }
+
+  function leerVolumen(nombre: string | null) {
+    invoke<Volumen>("obtener_volumen", { nombre })
+      .then((v) => {
+        volumen = v;
+        errorVolumen = "";
+      })
+      .catch((e) => {
+        volumen = null;
+        errorVolumen = String(e);
+      });
+  }
+
+  // Al cambiar de micrófono (acá o desde la bandeja), su volumen y, si se está
+  // probando, el medidor.
+  $effect(() => {
+    const nombre = config.microfono;
+    leerVolumen(nombre);
+    if (untrack(() => probando)) invoke("probar_microfono", { nombre });
+  });
+
+  $effect(() => {
+    if (!visible) dejarDeProbar();
+  });
+
+  function probar() {
+    probando = true;
+    nivel = 0;
+    invoke("probar_microfono", { nombre: config.microfono });
+  }
+
+  function dejarDeProbar() {
+    if (!probando) return;
+    probando = false;
+    nivel = 0;
+    invoke("detener_prueba_microfono");
+  }
+
+  // Mientras se arrastra el control llegan muchos cambios: se manda uno por vez y,
+  // al terminar, el último que quedó pendiente.
+  let enviando = false;
+  let pendiente: number | null = null;
+
+  async function cambiarVolumen(valor: number) {
+    if (volumen) volumen.nivel = valor;
+    pendiente = valor;
+    if (enviando) return;
+    enviando = true;
+    while (pendiente !== null) {
+      const nivel = pendiente;
+      pendiente = null;
+      try {
+        await invoke<Volumen>("cambiar_volumen", { nombre: config.microfono, nivel });
+        errorVolumen = "";
+      } catch (e) {
+        errorVolumen = String(e);
+      }
+    }
+    enviando = false;
+  }
+
+  async function activarMicrofono() {
+    try {
+      volumen = await invoke<Volumen>("cambiar_volumen", {
+        nombre: config.microfono,
+        silenciado: false,
+      });
+    } catch (e) {
+      errorVolumen = String(e);
+    }
   }
 
   async function intentar(accion: () => Promise<unknown>) {
@@ -193,6 +290,38 @@
       {/if}
     </select>
   </div>
+
+  <div class="fila">
+    <label for="volumen">Volumen</label>
+    <input
+      id="volumen"
+      type="range"
+      min="0"
+      max="100"
+      disabled={!volumen}
+      value={Math.round((volumen?.nivel ?? 0) * 100)}
+      oninput={(e) => cambiarVolumen(+e.currentTarget.value / 100)}
+    />
+    <span class="porcentaje">{volumen ? `${Math.round(volumen.nivel * 100)}%` : ""}</span>
+    {#if probando}
+      <button onclick={dejarDeProbar}>Dejar de probar</button>
+    {:else}
+      <button onclick={probar}>Probar</button>
+    {/if}
+  </div>
+  <div class="medidor" class:apagado={!probando} title="Nivel del micrófono">
+    <div style="width: {nivel * 100}%"></div>
+  </div>
+  {#if volumen?.silenciado}
+    <p class="aviso">
+      El micrófono está silenciado en Windows: así no se escucha nada.
+      <button onclick={activarMicrofono}>Activar</button>
+    </p>
+  {/if}
+  {#if errorVolumen}<p class="error">{errorVolumen}</p>{/if}
+  <p class="muted nota-volumen">
+    El volumen es el mismo de la configuración de sonido de Windows: cambia para todas las apps.
+  </p>
 
   <div class="fila">
     <label for="idioma">Idioma</label>
@@ -406,6 +535,43 @@
   .fila select {
     flex: 1;
     min-width: 0;
+  }
+  input[type="range"] {
+    flex: 1;
+    min-width: 0;
+    accent-color: var(--acento);
+  }
+  .porcentaje {
+    width: 36px;
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+  }
+  .medidor {
+    height: 6px;
+    margin: -2px 0 8px 90px;
+    border-radius: 3px;
+    background: var(--suave);
+    overflow: hidden;
+  }
+  .medidor.apagado {
+    opacity: 0.5;
+  }
+  .medidor div {
+    height: 100%;
+    background: var(--acento);
+    transition: width 60ms linear;
+  }
+  .aviso {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 8px 90px;
+    font-size: 13px;
+    color: var(--naranja);
+  }
+  .nota-volumen {
+    margin: 0 0 12px 90px;
+    font-size: 12px;
   }
   .casilla {
     display: flex;

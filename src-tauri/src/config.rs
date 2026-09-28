@@ -135,6 +135,10 @@ pub fn guardar_config(app: AppHandle, config: Config) -> Result<(), String> {
             *c = config.clone();
         }
     }
+    // La ventana se entera de los cambios que vienen de la bandeja (el micrófono), y
+    // la bandeja, de los que vienen de la ventana.
+    let _ = app.emit("config", &config);
+    crate::bandeja::actualizar(&app);
     if let Some(canal) = app.try_state::<CanalDictado>() {
         let _ = canal.0.send(Mensaje::Config(config));
     }

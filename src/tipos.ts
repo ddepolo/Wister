@@ -94,6 +94,9 @@ export type Estadisticas = {
 
 export type Microfono = { nombre: string; predeterminado: boolean };
 
+/** Volumen del micrófono en Windows (`volumen::Volumen`); `nivel` va de 0 a 1. */
+export type Volumen = { nivel: number; silenciado: boolean };
+
 /** Un modelo medido en la prueba de rendimiento (`rendimiento::Medicion`). */
 export type Medicion = {
   modelo: string;

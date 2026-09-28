@@ -21,7 +21,8 @@ La transcripción la hace [Whisper](https://github.com/openai/whisper) (vía [wh
 - **Asistente de primer uso**: idioma, descarga del modelo, prueba del micrófono y un primer dictado de prueba.
 - **Estadísticas de uso**: palabras dictadas hoy, en la semana y en total, tiempo ahorrado contra tipear, días seguidos y velocidad.
 - **Historial en tu PC**: cada dictado queda guardado con la fecha y la app donde lo pegaste, con buscador y botones para copiarlo o borrarlo. Se puede desactivar y borrar todo.
-- **Configurable**: modelo, micrófono, idioma, atajo, sonidos al grabar y arranque con Windows.
+- **Configurable**: modelo, micrófono (también desde la bandeja), su volumen, idioma, atajo, sonidos al grabar y arranque con Windows.
+- **Diagnóstico**: una prueba de rendimiento te dice qué modelo anda mejor en tu PC, y "Exportar diagnóstico" arma un archivo de texto para pedir ayuda (sin nada de lo que dictaste).
 - **Se actualiza con un botón**: "Buscar actualizaciones" baja la versión nueva, verifica su firma y la instala. No se conecta sola.
 - **No inventa texto**: un detector de voz (Silero VAD) deja pasar solo lo que dijiste y recorta los silencios. Si solo hubo ruido, no transcribe nada (Whisper suele "escuchar" un "Gracias." en grabaciones vacías).
 
@@ -55,7 +56,9 @@ Para actualizar: **Configuración → Buscar actualizaciones**. Cada instalació
 
 Si mientras tenés el atajo apretado tocás otra tecla, se cancela: así los atajos comunes como `Ctrl+Shift+T` siguen funcionando. Un toque de menos de 300 ms también se ignora.
 
-Con doble clic en el ícono de la bandeja (o clic derecho → "Abrir Wister") se abre la ventana: en **Inicio** están tus estadísticas (palabras dictadas, tiempo ahorrado, días seguidos) y los últimos dictados; en **Historial**, todo lo que dictaste, con buscador; y en **Configuración**, el modelo, el micrófono, el idioma, el atajo, la onda en pantalla, los sonidos y el arranque con Windows.
+Con doble clic en el ícono de la bandeja (o clic derecho → "Abrir Wister") se abre la ventana: en **Inicio** están tus estadísticas (palabras dictadas, tiempo ahorrado, días seguidos) y los últimos dictados; en **Historial**, todo lo que dictaste, con buscador; y en **Configuración**, el modelo, el micrófono y su volumen, el idioma, el atajo, la onda en pantalla, los sonidos, el arranque con Windows y el diagnóstico. El micrófono también se elige con clic derecho en el ícono de la bandeja → Micrófono.
+
+Si no sabés qué modelo usar, **Configuración → Diagnóstico → Prueba de rendimiento**: leés una frase y Wister la transcribe con cada modelo que tenés descargado, te muestra cuánto tarda y cuánto acierta cada uno, y te recomienda uno.
 
 ## Modelos
 
@@ -79,6 +82,7 @@ Los modelos se guardan en `%LOCALAPPDATA%\Wister\data\models`.
 - La única conexión a internet es la descarga de modelos, cuando la pedís.
 - La configuración se guarda en `%APPDATA%\ar.wister.app\config.json`.
 - El historial de dictados (el texto, no el audio) se guarda en `%APPDATA%\ar.wister.app\historial.db`, y solo si la opción está activada. "Borrar todo" lo elimina del archivo.
+- Un registro de funcionamiento (tiempos, errores y datos de la PC, nunca el texto dictado) se guarda en `%LOCALAPPDATA%\ar.wister.app\logs\wister.log`. Solo sale de tu PC si exportás el diagnóstico y lo compartís.
 
 ## Compilar desde el código
 

@@ -38,7 +38,7 @@ Principios que no se negocian:
 
 ## Estado
 
-**Versión 0.2.0**: dictado push-to-talk completo (atajo, grabación, transcripción, pegado) con VAD, overlay, ventana con barra lateral (Inicio con estadísticas, Historial en SQLite, Configuración), asistente de primer uso, actualización con un botón y dos instaladores NSIS (Vulkan y solo CPU) en GitHub Releases. El detalle está en `CHANGELOG.md`. Sin publicar: registro de funcionamiento, prueba de rendimiento de los modelos y exportar diagnóstico.
+**Versión 0.2.0**: dictado push-to-talk completo (atajo, grabación, transcripción, pegado) con VAD, overlay, ventana con barra lateral (Inicio con estadísticas, Historial en SQLite, Configuración), asistente de primer uso, actualización con un botón y dos instaladores NSIS (Vulkan y solo CPU) en GitHub Releases. El detalle está en `CHANGELOG.md`. Sin publicar: registro de funcionamiento, prueba de rendimiento de los modelos, exportar diagnóstico, micrófono desde la bandeja y volumen del micrófono.
 
 Pendiente, en orden aproximado de prioridad:
 
@@ -54,7 +54,7 @@ Pendiente, en orden aproximado de prioridad:
 Cargo.toml                 workspace (versión, licencia y perfiles compartidos)
 crates/wister-core/        lib: audio.rs, models.rs, stt.rs, vad.rs (sin Tauri; el modelo de VAD está en assets/)
 crates/wister-cli/         bin `wister`: CLI para probar y medir
-src-tauri/                 app Tauri (bin `wister-app`): hotkey, dictado, pegar, overlay, config, historial, sonidos, registro, sistema, rendimiento, diagnostico
+src-tauri/                 app Tauri (bin `wister-app`): hotkey, dictado, pegar, overlay, bandeja, config, volumen, historial, sonidos, registro, sistema, rendimiento, diagnostico
 src/                       UI en Svelte 5: App (barra lateral), Inicio, Historial, Diccionario, Configuracion, Rendimiento, Asistente, Overlay; estilos.css y tipos.ts
 scripts/                   dev.ps1, build.ps1, logo.py
 docs/arquitectura.md       diseño, módulos y decisiones
@@ -94,6 +94,7 @@ Trampas que ya costaron tiempo:
 - **Targets**: `dev.ps1` compila en `C:\wt` con las instrucciones nativas de la CPU; `build.ps1`, en `C:\wr` (Vulkan) y `C:\wt-cpu`, con AVX2 fijo. No mezclarlos: whisper.cpp no se recompila solo si cambian las variables `GGML_*`.
 - **Build release**: no redirigir la salida de `build.ps1` con `2>&1`, porque PowerShell 5.1 convierte el stderr de node en un error y `$ErrorActionPreference = "Stop"` corta el script.
 - **Estado de Tauri**: las ventanas de `tauri.conf.json` se crean antes del `setup`, y en release la UI llama a los comandos antes de que exista el estado que registra el `setup`. Esos comandos usan `try_state`.
+- **COM**: `windows-sys` no trae las interfaces COM; para `IAudioEndpointVolume` se usa el crate `windows` 0.62 (el que ya trae Tauri), en un hilo propio con `COINIT_MULTITHREADED`.
 - **Overlay**: `show()` de Tauri activa la ventana y, si se muestra por fuera, su `hide()` no hace nada. Se usa `ShowWindow` nativo para las dos cosas.
 - **Raw Input**: un solo registro por tipo de dispositivo y por proceso; el de Wister reemplaza el del teclado de tao. Las teclas inyectadas llegan con `hDevice` nulo.
 - **Portapapeles**: el hilo dueño tiene que procesar mensajes siempre (Windows le manda `WM_DESTROYCLIPBOARD` de forma sincrónica). `SendInput` no avisa cuando UIPI lo bloquea: se revisa `TokenElevation` de la ventana activa.

@@ -37,7 +37,9 @@ crates/wister-core/         biblioteca sin Tauri, reutilizable
   src/vad.rs                Silero VAD (modelo embebido en assets/)
 crates/wister-cli/          bin `wister`: dictate, transcribe, bench, download...
 src-tauri/                  la app
-  src/main.rs               arranque, bandeja, ventanas, plugins y comandos
+  src/main.rs               arranque, ventanas, plugins y comandos
+  src/bandeja.rs            ícono de la bandeja y su menú (con el submenú de micrófonos)
+  src/volumen.rs            volumen y silencio del micrófono (IAudioEndpointVolume)
   src/hotkey.rs             Detector (máquina de estados del atajo) + Raw Input
   src/dictado.rs            hilo de dictado: modelo, grabación, transcripción, estado
   src/pegar.rs              portapapeles, Ctrl+V y restauración
@@ -160,6 +162,13 @@ Si un dictado va a la misma ventana que el anterior antes de 60 s, se le antepon
 - La interfaz se actualiza con el evento `historial` (`agregado`, `borrado`, `borrado_todo`, `error`) sin volver a pedir la lista.
 - **Estadísticas** (comando `estadisticas`): una consulta agrupa los dictados por día del calendario local (`date(..., 'localtime')`) y cuenta cuántos días atrás es cada uno; el resto se calcula en Rust (`resumir`, con tests). El tiempo ahorrado es lo que se tardaría tipeando a 40 palabras por minuto menos lo que duró el audio. La racha cuenta días seguidos hasta hoy o hasta ayer, para que no se corte antes del primer dictado del día.
 
+### Volumen del micrófono (`volumen.rs`)
+
+- `IAudioEndpointVolume` (crate `windows` 0.62, el mismo que ya trae Tauri; `windows-sys` no tiene las interfaces COM). Es el volumen de entrada de Windows: cambia para todas las apps, y así se le dice al usuario.
+- El dispositivo se busca por el nombre de `PKEY_Device_FriendlyName`, que es el mismo que usa cpal, con el mismo criterio que al grabar (exacto, o por subcadena sin distinguir mayúsculas). Si no está, se usa el predeterminado (`eCapture`, `eConsole`), igual que el dictado.
+- Cada llamada corre en un hilo propio con COM multihilo: el hilo de la ventana ya lo tiene inicializado de otra forma.
+- La interfaz manda un cambio por vez mientras se arrastra el control, y el último al terminar. El medidor de nivel usa `probar_microfono` y se apaga al salir de la sección o al perder el foco, para no dejar el micrófono abierto.
+
 ### Diagnóstico (`registro.rs`, `sistema.rs`, `rendimiento.rs`, `diagnostico.rs`)
 
 - **Registro**: un logger propio del crate `log` escribe en `%LOCALAPPDATA%\ar.wister.app\logs\wister.log` (en desarrollo, también por la consola). Al arrancar, si pasa de 2 MB se renombra a `wister.anterior.log`. Nunca se anota el texto dictado: de cada dictado quedan la duración, las palabras, los tiempos y el resultado del pegado. Un `panic` también queda anotado.
@@ -172,7 +181,8 @@ Si un dictado va a la misma ventana que el anterior antes de 60 s, se le antepon
 
 - Barra lateral con Inicio, Historial, Diccionario y Configuración, el estado del dictado y "Salir de Wister" (con confirmación: cerrar la ventana solo la esconde en la bandeja).
 - Las secciones quedan montadas y se ocultan con `hidden`: así no se pierden la búsqueda del historial ni el progreso de una descarga al cambiar de sección.
-- Bandeja: doble clic abre la ventana; el menú (Abrir Wister, Salir) va solo en el clic derecho, porque con el izquierdo el primer clic abriría el menú y el doble clic no llegaría.
+- Bandeja (`bandeja.rs`): doble clic abre la ventana; el menú (Abrir Wister, Micrófono, Salir) va solo en el clic derecho, porque con el izquierdo el primer clic abriría el menú y el doble clic no llegaría. El submenú Micrófono se rearma cuando el mouse entra al ícono (`TrayIconEvent::Enter`, antes de que se pueda abrir el menú) y cada vez que se guarda la configuración. Los ids de los ítems son `mic:<nombre>`; en el texto, `&` se duplica porque Windows lo toma como tecla de acceso.
+- `guardar_config` emite el evento `config`: así la ventana se entera de un micrófono elegido desde la bandeja.
 - El logo se importa con `?no-inline`: si Vite lo embebiera como `data:`, la CSP no lo dejaría cargar.
 
 ### Modelos (`wister-core/src/models.rs`)

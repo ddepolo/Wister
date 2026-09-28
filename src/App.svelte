@@ -34,6 +34,8 @@
 
   listen<Estado>("estado", ({ payload }) => (estado = payload));
   listen<Resultado>("resultado", ({ payload }) => (ultimo = payload));
+  // Cambios que no vienen de esta ventana, como elegir el micrófono desde la bandeja.
+  listen<Config>("config", ({ payload }) => (config = payload));
 
   /** Guarda la configuración; si falla, tira el error para que lo muestre quien llamó. */
   async function cambiar(cambios: Partial<Config>) {
@@ -114,7 +116,7 @@
         <Historial guardando={config.guardar_historial} />
       </div>
       <div class="seccion" hidden={seccion !== "configuracion"}>
-        <Configuracion {config} {cambiar} />
+        <Configuracion {config} {cambiar} visible={seccion === "configuracion"} />
       </div>
     </main>
   </div>
