@@ -1,6 +1,7 @@
 // Sin consola en release: es una app de bandeja.
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod actualizar;
 mod config;
 mod dictado;
 mod historial;
@@ -26,6 +27,7 @@ fn main() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
         ))
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(dictado::EstadoActual::default())
         .manage(config::Descargas::default())
         .manage(historial::Historial::default())
@@ -46,6 +48,8 @@ fn main() {
             historial::borrar_historial,
             historial::estadisticas,
             salir,
+            actualizar::buscar_actualizacion,
+            actualizar::instalar_actualizacion,
         ])
         .setup(|app| {
             crear_bandeja(app.handle())?;

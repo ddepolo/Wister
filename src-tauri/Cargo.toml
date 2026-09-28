@@ -28,6 +28,7 @@ serde_json = "1.0.151"
 tauri-plugin-autostart = "2"
 # SQLite compilado junto con la app: no depende de que haya uno instalado.
 rusqlite = { version = "0.40", features = ["bundled", "functions"] }
+tauri-plugin-updater = "2"
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = [

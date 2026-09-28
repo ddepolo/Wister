@@ -19,6 +19,13 @@
   let confirmarBorrado = $state(false);
   let error = $state("");
 
+  type Actualizacion =
+    | { tipo: "inactiva" | "buscando" | "al_dia" }
+    | { tipo: "disponible"; version: string; notas: string | null }
+    | { tipo: "instalando"; version: string; porcentaje: number | null }
+    | { tipo: "error"; mensaje: string };
+  let actualizacion = $state<Actualizacion>({ tipo: "inactiva" });
+
   const recomendado = $derived(modelos.find((m) => m.recomendado)?.nombre ?? "");
   const modeloElegido = $derived(config.modelo ?? recomendado);
   const microfonoPredeterminado = $derived(microfonos.find((m) => m.predeterminado)?.nombre);
@@ -29,6 +36,14 @@
     refrescar();
     // Al volver a la ventana se releen los micrófonos: puede que se haya enchufado uno.
     window.addEventListener("focus", refrescar);
+    const progreso = listen<{ bajado: number; total: number | null }>(
+      "actualizacion",
+      ({ payload }) => {
+        if (actualizacion.tipo === "instalando") {
+          actualizacion.porcentaje = payload.total ? (payload.bajado / payload.total) * 100 : null;
+        }
+      },
+    );
     const escucha = listen<Descarga>("descarga", ({ payload }) => {
       const { modelo } = payload;
       if (payload.tipo === "progreso") {
@@ -44,6 +59,7 @@
     return () => {
       window.removeEventListener("focus", refrescar);
       escucha.then((dejar) => dejar());
+      progreso.then((dejar) => dejar());
     };
   });
 
@@ -74,6 +90,28 @@
   function borrarHistorial() {
     confirmarBorrado = false;
     intentar(() => invoke("borrar_historial"));
+  }
+
+  async function buscarActualizacion() {
+    actualizacion = { tipo: "buscando" };
+    try {
+      const nueva = await invoke<{ version: string; notas: string | null } | null>(
+        "buscar_actualizacion",
+      );
+      actualizacion = nueva ? { tipo: "disponible", ...nueva } : { tipo: "al_dia" };
+    } catch (e) {
+      actualizacion = { tipo: "error", mensaje: String(e) };
+    }
+  }
+
+  async function instalarActualizacion(version: string) {
+    actualizacion = { tipo: "instalando", version, porcentaje: 0 };
+    try {
+      // Si sale bien, el instalador cierra Wister y lo vuelve a abrir: no se vuelve de acá.
+      await invoke("instalar_actualizacion");
+    } catch (e) {
+      actualizacion = { tipo: "error", mensaje: String(e) };
+    }
   }
 
   function descargar(nombre: string) {
@@ -209,12 +247,46 @@
   </div>
 </section>
 
-<p class="muted pie">
-  Wister {version} ·
+<section class="tarjeta">
+  <h2>Acerca de Wister</h2>
+  <div class="version">
+    <span>Versión {version}</span>
+    {#if actualizacion.tipo === "inactiva" || actualizacion.tipo === "al_dia" || actualizacion.tipo === "error"}
+      <button onclick={buscarActualizacion}>Buscar actualizaciones</button>
+    {:else if actualizacion.tipo === "buscando"}
+      <button disabled>Buscando…</button>
+    {/if}
+  </div>
+
+  {#if actualizacion.tipo === "al_dia"}
+    <p class="muted">Tenés la última versión.</p>
+  {:else if actualizacion.tipo === "error"}
+    <p class="error">{actualizacion.mensaje}</p>
+  {:else if actualizacion.tipo === "disponible"}
+    {@const nueva = actualizacion.version}
+    <div class="nueva">
+      <strong>Hay una versión nueva: {actualizacion.version}</strong>
+      {#if actualizacion.notas}<pre class="notas">{actualizacion.notas}</pre>{/if}
+      <button class="principal" onclick={() => instalarActualizacion(nueva)}>
+        Actualizar ahora
+      </button>
+      <span class="muted">Wister se cierra, instala la versión nueva y se vuelve a abrir.</span>
+    </div>
+  {:else if actualizacion.tipo === "instalando"}
+    <p>Bajando la versión {actualizacion.version}…</p>
+    <div class="progreso ancho">
+      <div style="width: {actualizacion.porcentaje ?? 0}%"></div>
+    </div>
+  {/if}
+
+  <p class="muted">
+    Solo se conecta a GitHub cuando tocás el botón. Cada versión viene firmada y se verifica
+    antes de instalarla.
+  </p>
   <button class="enlace" onclick={() => aplicar({ asistente_completo: false })}>
     Volver a ejecutar el asistente
   </button>
-</p>
+</section>
 
 <style>
   .tarjeta {
@@ -307,7 +379,40 @@
     border-color: var(--rojo);
     color: var(--rojo);
   }
-  .pie {
-    margin-top: 16px;
+  .version {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    font-size: 13px;
+  }
+  .nueva {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px solid var(--acento);
+    border-radius: 8px;
+    font-size: 13px;
+  }
+  .notas {
+    box-sizing: border-box;
+    width: 100%;
+    max-height: 180px;
+    margin: 0;
+    overflow-y: auto;
+    font-family: inherit;
+    font-size: 12px;
+    white-space: pre-wrap;
+    opacity: 0.85;
+  }
+  .principal {
+    background: var(--acento);
+    border-color: var(--acento);
+    color: #fff;
+  }
+  .progreso.ancho {
+    margin: 0 0 8px;
   }
 </style>

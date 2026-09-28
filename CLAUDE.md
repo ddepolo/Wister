@@ -38,16 +38,15 @@ Principios que no se negocian:
 
 ## Estado
 
-**Versión 0.1.0**: dictado push-to-talk completo (atajo, grabación, transcripción, pegado), overlay, configuración, asistente de primer uso e instalador NSIS. Sin publicar todavía: VAD con Silero, historial en SQLite y la ventana nueva con barra lateral y estadísticas. El detalle está en `CHANGELOG.md`.
+**Versión 0.2.0**: dictado push-to-talk completo (atajo, grabación, transcripción, pegado) con VAD, overlay, ventana con barra lateral (Inicio con estadísticas, Historial en SQLite, Configuración), asistente de primer uso, actualización con un botón y dos instaladores NSIS (Vulkan y solo CPU) en GitHub Releases. El detalle está en `CHANGELOG.md`.
 
 Pendiente, en orden aproximado de prioridad:
 
-1. Diccionario personal (vía `initial_prompt`) y reemplazos de texto, en la sección Diccionario que ya está reservada.
-2. Publicar versiones en GitHub Releases, con el instalador firmado (por ejemplo, SignPath).
-3. Actualización con un botón (`tauri-plugin-updater`), que busque versiones nuevas solo cuando el usuario lo pida.
-4. Detectar si la PC tiene una GPU compatible para recomendar el modelo (hoy depende de cómo se compiló).
-5. Investigar por qué Whisper tarda ~150–350 ms en la app contra ~80 ms en el bench.
-6. Más adelante: modo manos libres, cancelar con `Esc`, post-procesado con un LLM local, estilos por app, macOS y Linux.
+1. Diccionario personal (vía `initial_prompt`) y reemplazos de texto. La sección está hecha pero oculta (`Diccionario.svelte`; se vuelve a agregar en `SECCIONES` de `App.svelte`). Diseño propuesto: vocabulario en la pista de Whisper y reemplazos después de transcribir, guardados en `config.json`.
+2. Workflow de GitHub Actions que compile los instaladores al crear un tag, y firmarlos (SignPath Foundation, gratis para proyectos libres, firma solo lo compilado en CI).
+3. Detectar si la PC tiene una GPU compatible para recomendar el modelo (hoy depende de cómo se compiló).
+4. Investigar por qué Whisper tarda ~150–350 ms en la app contra ~80 ms en el bench.
+5. Más adelante: modo manos libres, cancelar con `Esc`, post-procesado con un LLM local, estilos por app, macOS y Linux.
 
 ## Estructura
 
@@ -68,7 +67,8 @@ docs/fase-0.md             compilación, CLI y mediciones de modelos
 ```powershell
 npm install                     # una vez
 .\scripts\dev.ps1               # app en modo desarrollo con Vulkan (-Cpu para solo CPU)
-.\scripts\build.ps1             # instalador NSIS en C:\wt\release\bundle\nsis\ (-Cpu para solo CPU)
+.\scripts\build.ps1             # instalador NSIS en C:\wr\release\bundle\nsis\ (-Cpu para solo CPU)
+.\scripts\release.ps1           # los dos instaladores + latest.json en C:\wr\publicar\v<versión> (-Prueba)
 npm run check                   # svelte-check
 cargo fmt
 cargo clippy --all-targets -- -D warnings   # CI falla con cualquier warning
@@ -90,6 +90,8 @@ Trampas que ya costaron tiempo:
 - **CPU portable**: con `GGML_NATIVE=OFF` + `GGML_AVX/AVX2/FMA/F16C=ON` el binario funciona en cualquier x64 con AVX2 y no solo en la CPU donde se compiló (CI y `build.ps1 -Cpu`).
 - **Perfil dev**: las dependencias y `wister-core` van con `opt-level = 3`, porque los genéricos de rubato se instancian en `wister-core` (en debug el remuestreo de 12 s tardaba 289 ms; optimizado, 5 ms).
 - **tauri dev**: cortar la app mientras el watcher recompila puede dejar artefactos mezclados (`LNK2019` con símbolos `anon.*.llvm`): `cargo clean -p wister-core -p wister-app` en ese target. Antes de relanzar, cortar la app, los `cargo`/`rustc` que queden y lo que escuche en el puerto 1420.
+- **Actualizaciones**: se firman con la clave de `%USERPROFILE%\.tauri\wister-actualizaciones.key` (fuera del repo; `build.ps1` la toma de ahí). Si se pierde, las versiones instaladas no pueden verificar las nuevas. `latest.json` tiene una entrada por variante (`windows-x86_64` y `windows-x86_64-cpu`); el proceso para publicar está en `docs/arquitectura.md`.
+- **Targets**: `dev.ps1` compila en `C:\wt` con las instrucciones nativas de la CPU; `build.ps1`, en `C:\wr` (Vulkan) y `C:\wt-cpu`, con AVX2 fijo. No mezclarlos: whisper.cpp no se recompila solo si cambian las variables `GGML_*`.
 - **Build release**: no redirigir la salida de `build.ps1` con `2>&1`, porque PowerShell 5.1 convierte el stderr de node en un error y `$ErrorActionPreference = "Stop"` corta el script.
 - **Estado de Tauri**: las ventanas de `tauri.conf.json` se crean antes del `setup`, y en release la UI llama a los comandos antes de que exista el estado que registra el `setup`. Esos comandos usan `try_state`.
 - **Overlay**: `show()` de Tauri activa la ventana y, si se muestra por fuera, su `hide()` no hace nada. Se usa `ShowWindow` nativo para las dos cosas.

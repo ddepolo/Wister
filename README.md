@@ -9,7 +9,7 @@
 
 La transcripción la hace [Whisper](https://github.com/openai/whisper) (vía [whisper.cpp](https://github.com/ggml-org/whisper.cpp)) **en tu PC**: el audio no sale de tu computadora, no hay cuentas ni suscripción, y no hay telemetría. La red se usa solamente para bajar el modelo de voz, y solo cuando lo pedís.
 
-> **Estado: 0.1.0.** Funciona y se usa a diario, pero es una versión temprana: todavía puede cambiar bastante. Ver el [roadmap](#roadmap).
+> **Estado: 0.2.0.** Funciona y se usa a diario, pero es una versión temprana: todavía puede cambiar bastante. Ver el [roadmap](#roadmap).
 
 ## Qué hace
 
@@ -22,6 +22,7 @@ La transcripción la hace [Whisper](https://github.com/openai/whisper) (vía [wh
 - **Estadísticas de uso**: palabras dictadas hoy, en la semana y en total, tiempo ahorrado contra tipear, días seguidos y velocidad.
 - **Historial en tu PC**: cada dictado queda guardado con la fecha y la app donde lo pegaste, con buscador y botones para copiarlo o borrarlo. Se puede desactivar y borrar todo.
 - **Configurable**: modelo, micrófono, idioma, atajo, sonidos al grabar y arranque con Windows.
+- **Se actualiza con un botón**: "Buscar actualizaciones" baja la versión nueva, verifica su firma y la instala. No se conecta sola.
 - **No inventa texto**: un detector de voz (Silero VAD) deja pasar solo lo que dijiste y recorta los silencios. Si solo hubo ruido, no transcribe nada (Whisper suele "escuchar" un "Gracias." en grabaciones vacías).
 
 ## Requisitos
@@ -33,9 +34,18 @@ La transcripción la hace [Whisper](https://github.com/openai/whisper) (vía [wh
 
 ## Instalación
 
-Todavía no hay versiones publicadas para descargar: por ahora hay que [compilarlo](#compilar-desde-el-código). El instalador que se genera pesa unos 8 MB y se instala solo para tu usuario, sin permisos de administrador.
+Bajá el instalador de la [última versión](https://github.com/ddepolo/Wister/releases/latest):
 
-Como el instalador todavía no está firmado, Windows SmartScreen va a avisar que es de un editor desconocido: **Más información → Ejecutar de todas formas**.
+| Archivo | Para quién |
+|---|---|
+| `Wister_<versión>_x64-setup.exe` | **La mayoría.** Usa la placa de video con Vulkan (NVIDIA, AMD o Intel) y, si no hay, el procesador. |
+| `Wister_<versión>_x64-cpu-setup.exe` | PCs donde el anterior no abre: máquinas virtuales o sin drivers de video. Usa solo el procesador. |
+
+Se instala solo para tu usuario, sin permisos de administrador. El modelo de voz se baja después, desde el asistente de primer uso.
+
+Como el instalador todavía no está firmado, Windows SmartScreen va a avisar que es de un editor desconocido: **Más información → Ejecutar de todas formas**. Si querés verificar lo que bajaste, cada versión trae un `SHA256SUMS.txt` (`Get-FileHash .\Wister_...exe` en PowerShell).
+
+Para actualizar: **Configuración → Buscar actualizaciones**. Cada instalación se actualiza a su misma variante.
 
 ## Uso
 
@@ -84,6 +94,7 @@ Requisitos en Windows:
 npm install
 .\scripts\dev.ps1          # corre la app en modo desarrollo (con Vulkan; -Cpu para solo CPU)
 .\scripts\build.ps1        # genera el instalador (con Vulkan; -Cpu para solo CPU)
+.\scripts\release.ps1      # los dos instaladores + latest.json para publicar una versión
 ```
 
 Los scripts arman el entorno que necesita whisper.cpp en Windows. La primera compilación tarda varios minutos. Más detalles, y la CLI de pruebas y benchmarks, en [`docs/fase-0.md`](docs/fase-0.md).

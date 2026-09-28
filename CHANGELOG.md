@@ -4,6 +4,10 @@ Los cambios de cada versión. El formato sigue [Keep a Changelog](https://keepac
 
 ## [Sin publicar]
 
+## [0.2.0] - 2026-09-27
+
+Primera versión con instaladores para descargar.
+
 ### Agregado
 
 - Detección de voz con Silero VAD (incluido en la app, sin descarga): se transcriben solo los tramos con voz, se recortan los silencios y, si solo hubo ruido (tos, teclado, golpes), no se transcribe nada.
@@ -13,16 +17,21 @@ Los cambios de cada versión. El formato sigue [Keep a Changelog](https://keepac
 - Sección Historial con buscador (sin distinguir mayúsculas ni tildes, también por la app), agrupada por día, con botones para copiar y borrar cada dictado.
 - Configuración: casilla "Guardar el historial de dictados en esta PC" (activada por defecto) y botón "Borrar todo". Lo borrado se sobrescribe en el archivo.
 - Sección Inicio con estadísticas de uso: palabras de hoy, de los últimos 7 días y en total, tiempo ahorrado contra tipear a 40 palabras por minuto, días seguidos dictando y velocidad; y los últimos cinco dictados.
-- Sección Diccionario (por ahora, un lugar reservado para el diccionario personal).
 - Doble clic en el ícono de la bandeja para abrir la ventana.
 - Botón "Salir de Wister" en la barra lateral, con confirmación.
+- Actualización con un botón: "Buscar actualizaciones" en Configuración baja la versión nueva desde GitHub Releases, verifica su firma y la instala. Solo se conecta cuando se toca el botón.
+- Dos instaladores: con Vulkan (usa la placa de video, o el procesador si no hay) y solo CPU, para PCs sin Vulkan. Cada uno se actualiza a su misma variante.
 
 ### Cambiado
 
-- Ventana nueva, más grande (960×640), con barra lateral: Inicio, Historial, Diccionario y Configuración, y el estado del dictado abajo.
-- La configuración se ordena en bloques: modelo de voz, dictado e historial.
+- Ventana nueva, más grande (960×640), con barra lateral: Inicio, Historial y Configuración, y el estado del dictado abajo.
+- La configuración se ordena en bloques: modelo de voz, dictado, historial y "Acerca de".
 - La ventana ya no muestra los tiempos de cada dictado; solo avisa si el último se descartó o no se pudo pegar.
 - El menú de la bandeja se abre con el clic derecho, y "Configuración" pasó a llamarse "Abrir Wister".
+
+### Corregido
+
+- El instalador con Vulkan usa instrucciones de CPU portables (AVX2): antes usaba las de la PC donde se compilaba y, sin GPU, podía cerrarse en otros procesadores.
 
 ## [0.1.0] - 2026-09-27
 
@@ -42,4 +51,6 @@ Primera versión pública.
 - CLI `wister` para probar y medir modelos (`devices`, `models`, `download`, `dictate`, `transcribe`, `bench`).
 - Instalador NSIS por usuario, sin permisos de administrador.
 
+[Sin publicar]: https://github.com/ddepolo/Wister/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/ddepolo/Wister/releases/tag/v0.2.0
 [0.1.0]: https://github.com/ddepolo/Wister/releases/tag/v0.1.0

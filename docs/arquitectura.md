@@ -174,7 +174,21 @@ Si un dictado va a la misma ventana que el anterior antes de 60 s, se le antepon
 Dos trampas que resuelven `scripts/dev.ps1` y `scripts/build.ps1`:
 
 - **whisper.cpp sin `/O2`**: el crate `cmake` reemplaza `CMAKE_C_FLAGS_RELEASE` por los flags de `cc`, que en MSVC no traen `/O2`, y whisper.cpp queda sin optimizar: unas 8 veces más lento en CPU. Se arregla definiendo `CMAKE_C_FLAGS_RELEASE` y `CMAKE_CXX_FLAGS_RELEASE` como `/MD /O2 /Ob2 /DNDEBUG`, que whisper-rs-sys le pasa a CMake. Después de cambiarlas hay que correr `cargo clean -p whisper-rs-sys`.
-- **Rutas largas con Vulkan**: el subproyecto `vulkan-shaders-gen` queda tan anidado dentro de `target\` que MSBuild supera los 260 caracteres (`FTK1011`, `MSB8066`). Se compila en `C:\wt`.
+- **Rutas largas con Vulkan**: el subproyecto `vulkan-shaders-gen` queda tan anidado dentro de `target\` que MSBuild supera los 260 caracteres (`FTK1011`, `MSB8066`). Se compila en `C:\wt` (desarrollo) y `C:\wr` (release).
+- **Instrucciones de CPU**: `build.ps1` compila con `GGML_NATIVE=OFF` y AVX2, también con Vulkan (sin GPU se usa el procesador). `dev.ps1` usa las nativas, y por eso cada uno tiene su target: whisper.cpp no se recompila solo si cambian esas variables.
+
+## Publicar una versión
+
+1. Subir la versión en `Cargo.toml` y `package.json`, y pasar lo de "Sin publicar" del `CHANGELOG.md` a su sección.
+2. `.\scripts\release.ps1`: compila los dos instaladores y deja en `C:\wr\publicar\v<versión>\` los `.exe`, `latest.json`, `notas.md` y `SHA256SUMS.txt`.
+3. Tag `v<versión>`, push, y `gh release create v<versión> --title "Wister <versión>" --notes-file notas.md` con esos archivos.
+
+### Actualizaciones (`actualizar.rs`)
+
+- `tauri-plugin-updater`, solo a pedido: el botón de Configuración llama a `buscar_actualizacion` y a `instalar_actualizacion`. El endpoint es `releases/latest/download/latest.json`, así que siempre apunta al último release.
+- Cada variante busca su entrada en `latest.json`: `windows-x86_64` (Vulkan) y `windows-x86_64-cpu` (`UpdaterBuilder::target`), para que la de CPU no se pase a la de Vulkan.
+- Los instaladores se firman con una clave de Tauri (minisign), distinta de la firma de código de Windows: la privada está en `%USERPROFILE%\.tauri\wister-actualizaciones.key`, fuera del repo, y la pública en `tauri.conf.json`. **Si se pierde, las versiones instaladas no pueden verificar las nuevas.** `requireSignedVersion` exige que la firma incluya la versión, para que no se pueda forzar la vuelta a una versión vieja.
+- Para probar sin publicar: `release.ps1 -Prueba` compila apuntando a `http://127.0.0.1:8765` (`scripts/actualizacion-prueba.json`). Se instala esa versión, se sube el número, se vuelve a correr y se sirve la carpeta con `python -m http.server 8765`.
 
 En desarrollo, las dependencias y `wister-core` se compilan optimizadas (`[profile.dev.package]` en el `Cargo.toml`): los genéricos de rubato se instancian en `wister-core`, y sin optimizar el remuestreo de 12 s de audio tardaba 289 ms (optimizado, 5 ms).
 

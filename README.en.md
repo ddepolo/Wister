@@ -9,7 +9,7 @@
 
 Transcription runs **on your PC** with [Whisper](https://github.com/openai/whisper) (through [whisper.cpp](https://github.com/ggml-org/whisper.cpp)). Your audio never leaves your computer: no accounts, no subscription, no telemetry. The network is only used to download the speech model, and only when you ask for it.
 
-> **Status: 0.1.0.** It works and is used daily, but it is an early release and may still change significantly.
+> **Status: 0.2.0.** It works and is used daily, but it is an early release and may still change significantly.
 
 ## Features
 
@@ -28,9 +28,13 @@ Transcription runs **on your PC** with [Whisper](https://github.com/openai/whisp
 
 Wister transcribes any language Whisper supports (the UI offers Spanish, English, Portuguese, French, Italian, German and automatic detection). **The user interface and the documentation are in Spanish for now**; code identifiers and comments are mostly in Spanish too.
 
+## Download
+
+Get the installer from the [latest release](https://github.com/ddepolo/Wister/releases/latest): `Wister_<version>_x64-setup.exe` for most PCs (GPU through Vulkan, falling back to the CPU), or `Wister_<version>_x64-cpu-setup.exe` if that one does not start (virtual machines, no video drivers). The installer is not signed yet, so SmartScreen will warn about an unknown publisher: **More info → Run anyway**. Updates are installed from **Configuración → Buscar actualizaciones** (the app never checks on its own).
+
 ## Building
 
-There are no published releases yet. To build from source on Windows you need Rust (MSVC), Visual Studio Build Tools (C++), CMake, LLVM, Node.js 24+, and the Vulkan SDK for GPU support:
+To build from source on Windows you need Rust (MSVC), Visual Studio Build Tools (C++), CMake, LLVM, Node.js 24+, and the Vulkan SDK for GPU support:
 
 ```powershell
 npm install
