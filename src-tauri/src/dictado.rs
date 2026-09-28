@@ -24,6 +24,8 @@ use crate::sonidos::{self, Sonido};
 /// Lo que le llega al hilo de dictado.
 #[derive(Debug)]
 pub enum Mensaje {
+    // Fuera de Windows todavía no hay atajo global.
+    #[cfg_attr(not(windows), allow(dead_code))]
     Atajo(Evento),
     Config(Config),
     /// Terminó una descarga: si no había modelo cargado, se reintenta.

@@ -3,6 +3,9 @@
 //! Se generan en memoria (dos tonos con fundido) en vez de venir de archivos: son
 //! pocos bytes y así no hay recursos que empaquetar.
 
+// Fuera de Windows todavía no suenan: el WAV solo lo usan los tests.
+#![cfg_attr(not(windows), allow(dead_code))]
+
 use std::sync::OnceLock;
 
 const FRECUENCIA: u32 = 44_100;
