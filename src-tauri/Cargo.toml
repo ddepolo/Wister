@@ -29,6 +29,7 @@ tauri-plugin-autostart = "2"
 # SQLite compilado junto con la app: no depende de que haya uno instalado.
 rusqlite = { version = "0.40", features = ["bundled", "functions"] }
 tauri-plugin-updater = "2"
+log = "0.4"
 
 [target.'cfg(windows)'.dependencies]
 windows-sys = { version = "0.61", features = [
@@ -38,6 +39,8 @@ windows-sys = { version = "0.61", features = [
   "Win32_System_DataExchange",
   "Win32_System_LibraryLoader",
   "Win32_System_Memory",
+  "Win32_System_Registry",
+  "Win32_System_SystemInformation",
   "Win32_System_Threading",
   "Win32_UI_Input",
   "Win32_UI_Input_KeyboardAndMouse",

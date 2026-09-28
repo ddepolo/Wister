@@ -19,6 +19,8 @@ use crate::historial;
 use crate::hotkey::{Evento, Motivo, DURACION_MINIMA};
 use crate::overlay;
 use crate::pegar::Pegado;
+use crate::rendimiento;
+use crate::sistema::Sistema;
 use crate::sonidos::{self, Sonido};
 
 /// Lo que le llega al hilo de dictado.
@@ -33,6 +35,14 @@ pub enum Mensaje {
     /// Abrir un micrófono solo para mostrar su nivel en la configuración.
     ProbarMicrofono(Option<String>),
     DetenerPrueba,
+    /// Prueba de rendimiento: grabar la frase (con el micrófono de la configuración)...
+    GrabarRendimiento {
+        frase: &'static str,
+        idioma: &'static str,
+    },
+    /// ...y medir cada modelo con lo grabado.
+    MedirRendimiento,
+    CancelarRendimiento,
 }
 
 /// Para mandarle mensajes al hilo de dictado desde los comandos de la UI.
@@ -109,6 +119,8 @@ pub fn iniciar(app: AppHandle, mensajes: Receiver<Mensaje>, config: Config) -> R
         .name("wister-dictado".into())
         .spawn(move || {
             stt::silence_native_logs();
+            // Acá y no en el `setup`: listar las GPU inicializa Vulkan, y eso tarda.
+            log::info!("{}", Sistema::detectar().resumen());
             let mut dictado = match Dictado::new(&app, config) {
                 Ok(d) => d,
                 Err(e) => return publicar_error(&app, &e),
@@ -155,6 +167,12 @@ struct Grabacion {
     confirmada: bool,
 }
 
+struct GrabacionRendimiento {
+    recording: Recording,
+    frase: &'static str,
+    idioma: &'static str,
+}
+
 struct Modelo {
     nombre: String,
     engine: stt::Engine,
@@ -173,6 +191,10 @@ struct Dictado {
     confirmar_en: Option<Instant>,
     /// Micrófono abierto para el medidor de nivel de la configuración.
     prueba: Option<Recording>,
+    /// Frase que se está grabando para la prueba de rendimiento.
+    rendimiento: Option<GrabacionRendimiento>,
+    /// Último micrófono anotado en el registro, para anotarlo solo cuando cambia.
+    ultimo_microfono: String,
     #[cfg(windows)]
     pegador: crate::pegar::Pegador,
 }
@@ -180,7 +202,7 @@ struct Dictado {
 impl Dictado {
     fn new(app: &AppHandle, config: Config) -> Result<Self> {
         let vad = Vad::load()
-            .map_err(|e| eprintln!("sin VAD, solo el filtro por energía: {e:#}"))
+            .map_err(|e| log::warn!("sin VAD, solo el filtro por energía: {e:#}"))
             .ok();
         Ok(Self {
             app: app.clone(),
@@ -191,6 +213,8 @@ impl Dictado {
             grabacion: None,
             confirmar_en: None,
             prueba: None,
+            rendimiento: None,
+            ultimo_microfono: String::new(),
             #[cfg(windows)]
             pegador: crate::pegar::Pegador::iniciar()?,
         })
@@ -222,7 +246,78 @@ impl Dictado {
                 }
             }
             Mensaje::DetenerPrueba => self.detener_prueba(),
+            Mensaje::GrabarRendimiento { frase, idioma } => {
+                self.cancelar_rendimiento();
+                if self.grabacion.is_some() {
+                    return;
+                }
+                self.detener_prueba();
+                match self.abrir_microfono("config", "nivel_prueba") {
+                    Ok(recording) => {
+                        self.rendimiento = Some(GrabacionRendimiento {
+                            recording,
+                            frase,
+                            idioma,
+                        })
+                    }
+                    Err(e) => emitir_rendimiento(
+                        &self.app,
+                        rendimiento::Evento::Error {
+                            mensaje: format!("{e:#}"),
+                        },
+                    ),
+                }
+            }
+            Mensaje::MedirRendimiento => self.medir_rendimiento(),
+            Mensaje::CancelarRendimiento => self.cancelar_rendimiento(),
         }
+    }
+
+    fn cancelar_rendimiento(&mut self) {
+        if let Some(r) = self.rendimiento.take() {
+            r.recording.stop();
+        }
+    }
+
+    fn medir_rendimiento(&mut self) {
+        let Some(grabacion) = self.rendimiento.take() else {
+            return;
+        };
+        let audio = grabacion.recording.stop();
+        let voz = match preparar_rendimiento(audio, self.vad.as_mut()) {
+            Ok(v) => v,
+            Err(e) => {
+                return emitir_rendimiento(
+                    &self.app,
+                    rendimiento::Evento::Error {
+                        mensaje: format!("{e:#}"),
+                    },
+                )
+            }
+        };
+        log::info!(
+            "prueba de rendimiento con {:.1} s de voz",
+            voz.duration_secs()
+        );
+        // Mientras se mide no se dicta: cada modelo se carga y se libera, y el de la
+        // configuración se libera antes para no ocupar memoria de más.
+        #[cfg(windows)]
+        crate::hotkey::pausar(true);
+        self.modelo = None;
+        let app = self.app.clone();
+        let mediciones = rendimiento::medir(&voz, grabacion.frase, grabacion.idioma, |e| {
+            emitir_rendimiento(&app, e)
+        });
+        emitir_rendimiento(
+            &self.app,
+            rendimiento::Evento::Fin {
+                voz_ms: (voz.duration_secs() * 1000.0) as u64,
+                recomendado: rendimiento::recomendar(&mediciones, stt::gpu_available()),
+            },
+        );
+        self.cargar_modelo();
+        #[cfg(windows)]
+        crate::hotkey::pausar(false);
     }
 
     fn detener_prueba(&mut self) {
@@ -260,7 +355,7 @@ impl Dictado {
                 modelo: nombre.clone(),
             },
         );
-        match cargar_engine(&nombre, &self.opciones()) {
+        match cargar_engine(&nombre, &self.opciones(), true) {
             Ok(engine) => {
                 self.reposo = Estado::Listo {
                     modelo: nombre.clone(),
@@ -269,6 +364,7 @@ impl Dictado {
                 self.modelo = Some(Modelo { nombre, engine });
             }
             Err(e) => {
+                log::error!("{e:#}");
                 self.reposo = Estado::Error {
                     mensaje: format!("{e:#}"),
                 };
@@ -304,7 +400,7 @@ impl Dictado {
         };
         match resultado {
             Ok(Some(r)) => {
-                eprintln!("{r:?}");
+                anotar(&r);
                 let _ = self.app.emit("resultado", &r);
                 publicar(&self.app, self.reposo.clone());
                 // Después de ocultar el overlay: guardar puede tardar (la primera vez abre la base).
@@ -329,10 +425,19 @@ impl Dictado {
         if self.grabacion.is_some() {
             return;
         }
-        // El dictado tiene prioridad sobre el medidor de la configuración.
+        // El dictado tiene prioridad sobre el medidor y la prueba de la configuración.
         self.detener_prueba();
+        if self.rendimiento.is_some() {
+            self.cancelar_rendimiento();
+            emitir_rendimiento(
+                &self.app,
+                rendimiento::Evento::Error {
+                    mensaje: "Se canceló la prueba porque empezaste a dictar.".into(),
+                },
+            );
+        }
         let inicio = Instant::now();
-        let recording = match self.abrir_microfono() {
+        let recording = match self.abrir_microfono("overlay", "nivel") {
             Ok(r) => r,
             Err(e) => return publicar_error(&self.app, &e),
         };
@@ -359,22 +464,32 @@ impl Dictado {
         }
     }
 
-    fn abrir_microfono(&self) -> Result<Recording> {
+    /// Abre el micrófono de la configuración y manda el nivel a `ventana` por `evento`.
+    fn abrir_microfono(
+        &mut self,
+        ventana: &'static str,
+        evento: &'static str,
+    ) -> Result<Recording> {
         let nivel = |app: AppHandle| {
             move |rms: f32| {
-                let _ = app.emit_to("overlay", "nivel", rms);
+                let _ = app.emit_to(ventana, evento, rms);
             }
         };
         let elegido = self.config.microfono.as_deref();
-        match audio::start_recording_with_levels(elegido, nivel(self.app.clone())) {
+        let recording = match audio::start_recording_with_levels(elegido, nivel(self.app.clone())) {
             // Si el micrófono elegido no está (se desconectó el USB, por ejemplo), se usa
             // el predeterminado antes que no dictar.
             Err(e) if elegido.is_some() => {
-                eprintln!("{e:#}; se usa el micrófono predeterminado");
+                log::warn!("{e:#}; se usa el micrófono predeterminado");
                 audio::start_recording_with_levels(None, nivel(self.app.clone()))
             }
             r => r,
+        }?;
+        if recording.device_name != self.ultimo_microfono {
+            log::info!("micrófono: {}", recording.device_name);
+            self.ultimo_microfono = recording.device_name.clone();
         }
+        Ok(recording)
     }
 
     fn transcribir(&mut self) -> Result<Option<Resultado>> {
@@ -411,7 +526,7 @@ impl Dictado {
         }
         let remuestreo = soltado.elapsed();
         let transcript = modelo.engine.transcribe(&a16k, &opciones)?;
-        eprintln!(
+        log::info!(
             "remuestreo y VAD {} ms + whisper {} ms",
             remuestreo.as_millis(),
             transcript.elapsed.as_millis()
@@ -422,7 +537,7 @@ impl Dictado {
             }));
         }
         if stt::is_hallucination(&transcript.text) {
-            eprintln!("frase fantasma descartada: {:?}", transcript.text);
+            log::info!("frase fantasma descartada: {:?}", transcript.text);
             return Ok(Some(Resultado::Descartado {
                 motivo: Descarte::SinVoz,
             }));
@@ -462,12 +577,14 @@ fn ventana_activa() -> Option<String> {
     None
 }
 
-fn cargar_engine(nombre: &str, opciones: &stt::Options) -> Result<stt::Engine> {
+/// Carga un modelo y lo "calienta". Con `gpu` en `false` usa la CPU aunque haya GPU.
+pub fn cargar_engine(nombre: &str, opciones: &stt::Options, gpu: bool) -> Result<stt::Engine> {
     let modelo = models::find(nombre)?;
     if !modelo.is_downloaded() {
         bail!("falta el modelo {nombre}: descargalo en Configuración");
     }
-    let mut engine = stt::Engine::load(&modelo.path()?, true)?;
+    let ruta = modelo.path()?;
+    let mut engine = crate::registro::con_detalle_nativo(|| stt::Engine::load(&ruta, gpu))?;
 
     // La primera transcripción es lenta (con Vulkan se compilan los shaders: ~7 s en
     // una RTX 5070 Ti). Se hace una de prueba ahora para que no la pague el primer dictado.
@@ -476,7 +593,7 @@ fn cargar_engine(nombre: &str, opciones: &stt::Options) -> Result<stt::Engine> {
         sample_rate: audio::WHISPER_SAMPLE_RATE,
     };
     let calentamiento = engine.transcribe(&silencio, opciones)?;
-    eprintln!(
+    log::info!(
         "modelo {nombre} cargado en {} ms ({}), calentamiento {} ms",
         engine.load_time.as_millis(),
         if engine.gpu { "GPU" } else { "CPU" },
@@ -485,7 +602,45 @@ fn cargar_engine(nombre: &str, opciones: &stt::Options) -> Result<stt::Engine> {
     Ok(engine)
 }
 
+/// Anota el resultado de un dictado en el registro, sin el texto.
+fn anotar(r: &Resultado) {
+    match r {
+        Resultado::Texto {
+            texto,
+            audio_ms,
+            espera_ms,
+            microfono_ms,
+            pegado,
+            ..
+        } => log::info!(
+            "dictado: {audio_ms} ms de audio, {} palabras, micrófono {microfono_ms} ms, espera {espera_ms} ms, pegado: {pegado:?}",
+            texto.split_whitespace().count()
+        ),
+        Resultado::Descartado { motivo } => log::info!("dictado descartado: {motivo:?}"),
+    }
+}
+
+/// Recorta la frase de la prueba de rendimiento con el VAD y la deja a 16 kHz.
+fn preparar_rendimiento(audio: Audio, vad: Option<&mut Vad>) -> Result<Audio> {
+    if audio.duration_secs() < 3.0 {
+        bail!("Grabaste muy poco: leé la frase completa y después tocá \"Terminé\".");
+    }
+    let mut voz = audio.to_whisper()?;
+    if let Some(vad) = vad {
+        voz = vad.speech(&voz)?;
+    }
+    if voz.samples.is_empty() {
+        bail!("No se detectó voz. Fijate que el micrófono esté bien elegido y no esté silenciado.");
+    }
+    Ok(voz)
+}
+
+fn emitir_rendimiento(app: &AppHandle, evento: rendimiento::Evento) {
+    let _ = app.emit_to("config", "rendimiento", evento);
+}
+
 fn publicar_error(app: &AppHandle, e: &anyhow::Error) {
+    log::error!("{e:#}");
     publicar(
         app,
         Estado::Error {

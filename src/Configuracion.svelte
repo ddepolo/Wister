@@ -4,6 +4,7 @@
   import { listen } from "@tauri-apps/api/event";
   import { onMount } from "svelte";
   import CapturaAtajo from "./CapturaAtajo.svelte";
+  import Rendimiento from "./Rendimiento.svelte";
   import { IDIOMAS, type Config, type Descarga, type Microfono, type Modelo } from "./tipos";
 
   let {
@@ -17,6 +18,9 @@
   let descargas = $state<Record<string, { porcentaje: number | null; error?: string }>>({});
   let autoarranque = $state(false);
   let confirmarBorrado = $state(false);
+  let diagnostico = $state<{ tipo: "inactivo" | "exportando" } | { tipo: "listo"; ruta: string }>({
+    tipo: "inactivo",
+  });
   let error = $state("");
 
   type Actualizacion =
@@ -111,6 +115,17 @@
       await invoke("instalar_actualizacion");
     } catch (e) {
       actualizacion = { tipo: "error", mensaje: String(e) };
+    }
+  }
+
+  async function exportarDiagnostico() {
+    diagnostico = { tipo: "exportando" };
+    try {
+      diagnostico = { tipo: "listo", ruta: await invoke<string>("exportar_diagnostico") };
+      error = "";
+    } catch (e) {
+      diagnostico = { tipo: "inactivo" };
+      error = String(e);
     }
   }
 
@@ -248,6 +263,24 @@
 </section>
 
 <section class="tarjeta">
+  <h2>Diagnóstico</h2>
+  <h3>Prueba de rendimiento</h3>
+  <Rendimiento modeloActual={modeloElegido} usarModelo={(modelo) => aplicar({ modelo })} />
+
+  <h3>Informe para soporte</h3>
+  <p class="muted">
+    Guarda en Descargas un archivo de texto con los datos de la PC, la configuración y el registro
+    de funcionamiento de Wister. No incluye nada de lo que dictaste.
+  </p>
+  <button disabled={diagnostico.tipo === "exportando"} onclick={exportarDiagnostico}>
+    {diagnostico.tipo === "exportando" ? "Exportando…" : "Exportar diagnóstico"}
+  </button>
+  {#if diagnostico.tipo === "listo"}
+    <p class="muted">Guardado en <code>{diagnostico.ruta}</code></p>
+  {/if}
+</section>
+
+<section class="tarjeta">
   <h2>Acerca de Wister</h2>
   <div class="version">
     <span>Versión {version}</span>
@@ -291,6 +324,18 @@
 <style>
   .tarjeta {
     margin-top: 16px;
+  }
+  h3 {
+    margin: 14px 0 4px;
+    font-size: 13px;
+    font-weight: 600;
+  }
+  h2 + h3 {
+    margin-top: 0;
+  }
+  code {
+    font-size: 12px;
+    word-break: break-all;
   }
   ul {
     margin: 0;

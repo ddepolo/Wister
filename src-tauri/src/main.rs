@@ -3,11 +3,15 @@
 
 mod actualizar;
 mod config;
+mod diagnostico;
 mod dictado;
 mod historial;
 mod hotkey;
 mod overlay;
 mod pegar;
+mod registro;
+mod rendimiento;
+mod sistema;
 mod sonidos;
 
 use tauri::menu::{Menu, MenuItem};
@@ -50,8 +54,20 @@ fn main() {
             salir,
             actualizar::buscar_actualizacion,
             actualizar::instalar_actualizacion,
+            diagnostico::exportar_diagnostico,
+            rendimiento::iniciar_prueba_rendimiento,
+            rendimiento::medir_prueba_rendimiento,
+            rendimiento::cancelar_prueba_rendimiento,
         ])
         .setup(|app| {
+            if let Some(carpeta) = registro::carpeta(app.handle()) {
+                registro::iniciar(&carpeta);
+            }
+            log::info!(
+                "Wister {} iniciado ({})",
+                app.package_info().version,
+                wister_core::stt::gpu_backend().unwrap_or("solo CPU")
+            );
             crear_bandeja(app.handle())?;
             overlay::preparar(app.handle())?;
             iniciar_dictado(app.handle())?;

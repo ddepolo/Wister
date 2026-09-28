@@ -199,7 +199,7 @@ mod windows {
             let mut guardado = guardado;
             guardado.extend(sin_historial());
             if let Err(e) = poner(ventana, &guardado) {
-                eprintln!("no se pudo restaurar el portapapeles: {e:#}");
+                log::warn!("no se pudo restaurar el portapapeles: {e:#}");
             }
         }
     }

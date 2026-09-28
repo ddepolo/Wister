@@ -90,7 +90,7 @@ pub fn cargar(app: &AppHandle) -> Config {
                 c.downcast_ref::<std::io::Error>()
                     .is_some_and(|io| io.kind() == std::io::ErrorKind::NotFound)
             }) {
-                eprintln!("configuración inválida, se usa la de por defecto: {e:#}");
+                log::warn!("configuración inválida, se usa la de por defecto: {e:#}");
             }
             Config::default()
         })

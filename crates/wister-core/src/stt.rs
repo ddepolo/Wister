@@ -1,6 +1,7 @@
 //! Transcripción local con whisper.cpp (vía `whisper-rs`).
 
 use std::path::Path;
+use std::sync::OnceLock;
 use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context, Result};
@@ -88,14 +89,65 @@ pub struct Engine {
     pub gpu: bool,
 }
 
-/// Silencia los logs de whisper.cpp y ggml, que por defecto imprimen mucho en stderr.
+/// Saca los logs de whisper.cpp y ggml de stderr (por defecto imprimen mucho) y los
+/// manda al crate `log`: sin un logger instalado, se descartan.
 pub fn silence_native_logs() {
     whisper_rs::install_logging_hooks();
 }
 
-/// Si el binario se compiló con algún backend de GPU (`cuda` o `vulkan`).
+/// Backend de GPU con el que se compiló el binario, si hay alguno.
+pub fn gpu_backend() -> Option<&'static str> {
+    if cfg!(feature = "cuda") {
+        Some("CUDA")
+    } else if cfg!(feature = "vulkan") {
+        Some("Vulkan")
+    } else {
+        None
+    }
+}
+
+/// Una GPU que ve el backend compilado.
+#[derive(Debug, Clone)]
+pub struct GpuDevice {
+    pub name: String,
+    pub vram_mb: u64,
+}
+
+/// GPUs que puede usar Whisper. Con Vulkan se consultan una vez (inicializar Vulkan
+/// tarda); con CUDA whisper-rs no las lista y queda vacío.
+pub fn gpu_devices() -> &'static [GpuDevice] {
+    static DEVICES: OnceLock<Vec<GpuDevice>> = OnceLock::new();
+    DEVICES.get_or_init(|| {
+        #[cfg(feature = "vulkan")]
+        {
+            whisper_rs::vulkan::list_devices()
+                .into_iter()
+                .map(|d| GpuDevice {
+                    name: d.name,
+                    vram_mb: (d.vram.total / (1024 * 1024)) as u64,
+                })
+                .collect()
+        }
+        #[cfg(not(feature = "vulkan"))]
+        {
+            Vec::new()
+        }
+    })
+}
+
+/// Si Whisper va a usar la GPU. Con Vulkan además tiene que haber un dispositivo:
+/// en una PC sin GPU compatible whisper.cpp sigue en CPU sin avisar.
 pub fn gpu_available() -> bool {
-    cfg!(any(feature = "cuda", feature = "vulkan"))
+    if cfg!(feature = "vulkan") {
+        !gpu_devices().is_empty()
+    } else {
+        cfg!(feature = "cuda")
+    }
+}
+
+/// Instrucciones de CPU con las que se compiló whisper.cpp ("AVX = 1 | AVX2 = 1 | ...").
+pub fn system_info() -> &'static str {
+    whisper_rs::print_system_info()
 }
 
 impl Engine {

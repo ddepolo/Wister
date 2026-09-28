@@ -38,14 +38,14 @@ Principios que no se negocian:
 
 ## Estado
 
-**Versión 0.2.0**: dictado push-to-talk completo (atajo, grabación, transcripción, pegado) con VAD, overlay, ventana con barra lateral (Inicio con estadísticas, Historial en SQLite, Configuración), asistente de primer uso, actualización con un botón y dos instaladores NSIS (Vulkan y solo CPU) en GitHub Releases. El detalle está en `CHANGELOG.md`.
+**Versión 0.2.0**: dictado push-to-talk completo (atajo, grabación, transcripción, pegado) con VAD, overlay, ventana con barra lateral (Inicio con estadísticas, Historial en SQLite, Configuración), asistente de primer uso, actualización con un botón y dos instaladores NSIS (Vulkan y solo CPU) en GitHub Releases. El detalle está en `CHANGELOG.md`. Sin publicar: registro de funcionamiento, prueba de rendimiento de los modelos y exportar diagnóstico.
 
 Pendiente, en orden aproximado de prioridad:
 
 1. Diccionario personal (vía `initial_prompt`) y reemplazos de texto. La sección está hecha pero oculta (`Diccionario.svelte`; se vuelve a agregar en `SECCIONES` de `App.svelte`). Diseño propuesto: vocabulario en la pista de Whisper y reemplazos después de transcribir, guardados en `config.json`.
 2. Workflow de GitHub Actions que compile los instaladores al crear un tag, y firmarlos (SignPath Foundation, gratis para proyectos libres, firma solo lo compilado en CI).
-3. Detectar si la PC tiene una GPU compatible para recomendar el modelo (hoy depende de cómo se compiló).
-4. Investigar por qué Whisper tarda ~150–350 ms en la app contra ~80 ms en el bench.
+3. Decidir si hace falta elegir CPU o GPU a mano: con Vulkan ya se detecta si hay GPU, pero una integrada débil puede ser más lenta que la CPU (la prueba de rendimiento lo muestra).
+4. Investigar por qué Whisper tarda ~150–350 ms en la app contra ~80 ms en el bench. Pista: con la GPU recién usada, la prueba de rendimiento da ~110 ms con 10 s de audio; puede ser que la GPU baje los relojes en reposo.
 5. Más adelante: modo manos libres, cancelar con `Esc`, post-procesado con un LLM local, estilos por app, macOS y Linux.
 
 ## Estructura
@@ -54,8 +54,8 @@ Pendiente, en orden aproximado de prioridad:
 Cargo.toml                 workspace (versión, licencia y perfiles compartidos)
 crates/wister-core/        lib: audio.rs, models.rs, stt.rs, vad.rs (sin Tauri; el modelo de VAD está en assets/)
 crates/wister-cli/         bin `wister`: CLI para probar y medir
-src-tauri/                 app Tauri (bin `wister-app`): hotkey, dictado, pegar, overlay, config, historial, sonidos
-src/                       UI en Svelte 5: App (barra lateral), Inicio, Historial, Diccionario, Configuracion, Asistente, Overlay; estilos.css y tipos.ts
+src-tauri/                 app Tauri (bin `wister-app`): hotkey, dictado, pegar, overlay, config, historial, sonidos, registro, sistema, rendimiento, diagnostico
+src/                       UI en Svelte 5: App (barra lateral), Inicio, Historial, Diccionario, Configuracion, Rendimiento, Asistente, Overlay; estilos.css y tipos.ts
 scripts/                   dev.ps1, build.ps1, logo.py
 docs/arquitectura.md       diseño, módulos y decisiones
 docs/fase-0.md             compilación, CLI y mediciones de modelos
@@ -104,7 +104,8 @@ Trampas que ya costaron tiempo:
 - **cpal 0.18**: el nombre del dispositivo sale de `device.to_string()`; la selección es por subcadena, sin distinguir mayúsculas.
 - **rusqlite**: no implementa `ToSql`/`FromSql` para `u64` ni `usize` (sin features extra): se usan `u32`/`i64`. Guardar en el historial va después de ocultar el overlay, y la base va en WAL con `synchronous = NORMAL` para que cada `INSERT` no espere al disco.
 - **reqwest blocking**: tiene 30 s de timeout por defecto; para descargar modelos se desactiva con `.timeout(None)`.
-- Rutas: modelos en `%LOCALAPPDATA%\Wister\data\models` (o `WISTER_MODELS_DIR`), configuración en `%APPDATA%\ar.wister.app\config.json` e historial en `historial.db`, en la misma carpeta. Los comparten la app instalada, la de desarrollo y la CLI.
+- **Registro**: se usa `log::info!`/`warn!`/`error!`, no `eprintln!` (en release no hay consola y se pierde). Nunca anotar el texto dictado. Los mensajes de whisper.cpp llegan por `log` (feature `log_backend`); los informativos solo se anotan dentro de `registro::con_detalle_nativo`, filtrados por `nativo_util`.
+- Rutas: modelos en `%LOCALAPPDATA%\Wister\data\models` (o `WISTER_MODELS_DIR`), configuración en `%APPDATA%\ar.wister.app\config.json` e historial en `historial.db`, en la misma carpeta. El registro, en `%LOCALAPPDATA%\ar.wister.app\logs\wister.log`. Los comparten la app instalada, la de desarrollo y la CLI.
 
 ## Riesgos conocidos
 

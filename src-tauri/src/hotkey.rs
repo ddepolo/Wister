@@ -208,7 +208,7 @@ mod windows {
             .name("wister-atajo".into())
             .spawn(|| unsafe {
                 if let Err(e) = registrar() {
-                    eprintln!("{e:#}");
+                    log::error!("{e:#}");
                     return;
                 }
                 let mut msg: MSG = std::mem::zeroed();

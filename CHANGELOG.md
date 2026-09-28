@@ -4,6 +4,16 @@ Los cambios de cada versión. El formato sigue [Keep a Changelog](https://keepac
 
 ## [Sin publicar]
 
+### Agregado
+
+- Registro de funcionamiento en `%LOCALAPPDATA%\ar.wister.app\logs\wister.log`: datos de la PC al arrancar, carga de cada modelo (backend y memoria), tiempos de cada dictado, micrófono usado y errores. Nunca guarda el texto dictado. Al pasar de 2 MB se empieza uno nuevo y se conserva el anterior.
+- Configuración → Diagnóstico → **Prueba de rendimiento**: se lee una frase y Wister la transcribe con cada modelo descargado, con GPU y con CPU; muestra la espera, el porcentaje de palabras acertadas y la carga de cada uno, y recomienda el que mejor anda en esa PC.
+- Configuración → Diagnóstico → **Exportar diagnóstico**: guarda en Descargas un archivo de texto con los datos de la PC (Windows, CPU, RAM, placas de video y la GPU que usa Whisper), la configuración, los modelos, los micrófonos y el registro, para pedir ayuda desde otra máquina.
+
+### Cambiado
+
+- Con Vulkan, el modelo recomendado depende de si la PC tiene una GPU compatible, y no solo de cómo se compiló la app. Sin GPU, se recomienda `small` y el estado dice que usa la CPU.
+
 ## [0.2.0] - 2026-09-27
 
 Primera versión con instaladores para descargar.

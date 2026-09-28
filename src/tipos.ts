@@ -94,6 +94,24 @@ export type Estadisticas = {
 
 export type Microfono = { nombre: string; predeterminado: boolean };
 
+/** Un modelo medido en la prueba de rendimiento (`rendimiento::Medicion`). */
+export type Medicion = {
+  modelo: string;
+  gpu: boolean;
+  carga_ms: number;
+  transcripcion_ms: number;
+  aciertos: number;
+  texto: string;
+  error: string | null;
+};
+
+/** Evento `rendimiento` (`rendimiento::Evento`). */
+export type EventoRendimiento =
+  | { tipo: "midiendo"; modelo: string; gpu: boolean; paso: number; total: number }
+  | ({ tipo: "medicion" } & Medicion)
+  | { tipo: "fin"; voz_ms: number; recomendado: string | null }
+  | { tipo: "error"; mensaje: string };
+
 export type Descarga =
   | { tipo: "progreso"; modelo: string; bajado: number; total: number | null }
   | { tipo: "lista"; modelo: string }

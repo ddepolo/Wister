@@ -45,13 +45,18 @@ src-tauri/                  la app
   src/config.rs             config.json y los comandos de la ventana de configuración
   src/historial.rs          historial de dictados en SQLite y sus comandos
   src/sonidos.rs            tonos de inicio y fin generados en memoria
+  src/registro.rs           logger del crate `log` que escribe wister.log
+  src/sistema.rs            datos de la PC (Windows, CPU, RAM, placas de video)
+  src/rendimiento.rs        prueba de rendimiento de los modelos
+  src/diagnostico.rs        exportar el informe de diagnóstico
   tauri.conf.json           ventanas, bundle NSIS
 src/                        interfaz en Svelte 5
   App.svelte                barra lateral y secciones (o el asistente)
   Inicio.svelte             estadísticas y últimos dictados
   Historial.svelte          buscador y lista del historial (también el resumen de Inicio)
   Diccionario.svelte        lugar reservado para el diccionario personal
-  Configuracion.svelte      modelo, micrófono, idioma, atajo, preferencias e historial
+  Configuracion.svelte      modelo, micrófono, idioma, atajo, preferencias, historial y diagnóstico
+  Rendimiento.svelte        la prueba de rendimiento
   Icono.svelte              íconos de la barra lateral
   estilos.css               colores (claro y oscuro) y estilos compartidos
   Asistente.svelte          asistente de primer uso
@@ -117,7 +122,7 @@ Si al final el texto es solo una de las frases típicas (`stt::is_hallucination`
 - Sampling greedy (`best_of: 1`): para dictado alcanza y es bastante más rápido que beam search.
 - Con menos de 1 s de audio Whisper tiende a inventar, así que se completa con silencio hasta 1 s.
 - Backends: CPU (con AVX2), **Vulkan** (NVIDIA, AMD, Intel) y CUDA como opción de compilación. Vulkan es el de por defecto porque las DLL de CUDA pesan cientos de MB.
-- El modelo recomendado es `large-v3-turbo-q5_0` si el binario tiene GPU y `small` si no. Hoy se decide según cómo se compiló, no según si la PC tiene una GPU compatible.
+- El modelo recomendado es `large-v3-turbo-q5_0` si hay GPU y `small` si no. Con Vulkan, "hay GPU" quiere decir que el binario tiene Vulkan **y** que `whisper_rs::vulkan::list_devices()` encuentra algún dispositivo (se consulta una vez: inicializar Vulkan tarda). Sin dispositivo, whisper.cpp sigue en CPU sin avisar. Una GPU integrada cuenta como GPU; la prueba de rendimiento dice si en esa PC conviene.
 
 ### Pegado (`pegar.rs`)
 
@@ -154,6 +159,14 @@ Si un dictado va a la misma ventana que el anterior antes de 60 s, se le antepon
 - La búsqueda usa una función SQL propia, `plegar` (minúsculas y sin tildes; la `ñ` se deja), con `instr` en vez de `LIKE` para no tener que escapar `%` y `_`.
 - La interfaz se actualiza con el evento `historial` (`agregado`, `borrado`, `borrado_todo`, `error`) sin volver a pedir la lista.
 - **Estadísticas** (comando `estadisticas`): una consulta agrupa los dictados por día del calendario local (`date(..., 'localtime')`) y cuenta cuántos días atrás es cada uno; el resto se calcula en Rust (`resumir`, con tests). El tiempo ahorrado es lo que se tardaría tipeando a 40 palabras por minuto menos lo que duró el audio. La racha cuenta días seguidos hasta hoy o hasta ayer, para que no se corte antes del primer dictado del día.
+
+### Diagnóstico (`registro.rs`, `sistema.rs`, `rendimiento.rs`, `diagnostico.rs`)
+
+- **Registro**: un logger propio del crate `log` escribe en `%LOCALAPPDATA%\ar.wister.app\logs\wister.log` (en desarrollo, también por la consola). Al arrancar, si pasa de 2 MB se renombra a `wister.anterior.log`. Nunca se anota el texto dictado: de cada dictado quedan la duración, las palabras, los tiempos y el resultado del pegado. Un `panic` también queda anotado.
+- whisper.cpp y ggml llegan por el mismo camino (feature `log_backend` de whisper-rs). Se anotan sus advertencias y errores. Los mensajes informativos solo se anotan mientras se carga un modelo (`con_detalle_nativo`), y de esos, solo los que dicen si usa GPU, qué backend y cuánta memoria: el VAD escribe varias líneas en cada dictado y los hiperparámetros del modelo no aportan.
+- **Sistema**: versión de Windows, CPU y placas de video salen del registro de Windows (`ProductName` dice "Windows 10" también en Windows 11: se corrige por el número de build); la RAM, de `GlobalMemoryStatusEx`. Se anota una línea al arrancar el hilo de dictado, no en el `setup`, porque listar las GPU inicializa Vulkan.
+- **Prueba de rendimiento**: el hilo de dictado graba la frase con el micrófono de la configuración (el nivel va al medidor por `nivel_prueba`), la recorta con el VAD y, con el atajo en pausa y el modelo actual liberado, carga cada modelo descargado con GPU y con CPU, lo calienta y transcribe la frase. Los aciertos son 100 menos la tasa de error por palabra (distancia de edición, sin mayúsculas ni puntuación); la frase no tiene números porque Whisper puede escribirlos con cifras. Se recomienda el modelo de mejor calidad que transcribe en 1 s o menos con el backend que usa la app. El avance llega por el evento `rendimiento`. Si se aprieta el atajo mientras se graba la frase, la prueba se cancela.
+- **Informe**: `exportar_diagnostico` arma un texto con el sistema, el estado, la configuración, los modelos, los micrófonos y las últimas 3000 líneas del registro, lo guarda en Descargas y lo muestra en el Explorador (`explorer /select,` con `raw_arg`, porque no entiende las comillas que `arg` pondría alrededor de todo).
 
 ### Ventana principal (`App.svelte`)
 
@@ -201,11 +214,11 @@ Medido en un Intel Core Ultra 7 265K con una RTX 5070 Ti (detalle en [`fase-0.md
 | `large-v3-turbo-q5_0`, GPU (Vulkan) | ~80 ms | ~150–350 ms |
 | `small`, CPU (8–16 hilos) | ~1,2–1,6 s | — |
 
-La diferencia entre el bench y la app todavía no está explicada. Puede ser que la GPU baje los relojes en reposo entre dictados.
+La diferencia entre el bench y la app todavía no está explicada. Puede ser que la GPU baje los relojes en reposo entre dictados: en la prueba de rendimiento, con la GPU recién usada, la app transcribe 10 s en ~110 ms, pero un dictado de 1,6 s media hora después de cargar el modelo tardó 280 ms. El registro permite juntar más casos.
 
 ## Privacidad
 
-- Sin telemetría ni reportes automáticos de errores.
+- Sin telemetría ni reportes automáticos de errores. El registro de funcionamiento queda en la PC y sale solo si el usuario exporta el diagnóstico y lo comparte; no incluye el texto dictado.
 - El audio se procesa en memoria y no se guarda.
 - El historial guarda solo el texto, en la PC, y se puede desactivar o borrar.
 - La red se usa solo para bajar modelos, a pedido.
@@ -213,5 +226,5 @@ La diferencia entre el bench y la app todavía no está explicada. Puede ser que
 ## Riesgos y preguntas abiertas
 
 - **Antivirus**: `SendInput` y la lectura global del teclado pueden disparar falsos positivos. La mitigación es firmar el binario (hay firma gratuita para proyectos open source, como SignPath) y publicar el código.
-- **Detección de GPU**: el modelo recomendado depende de cómo se compiló el binario. Un build con Vulkan en una PC sin GPU compatible recomendaría `turbo`, que en CPU es lento.
+- **Detección de GPU**: con Vulkan se detecta si hay un dispositivo, pero una GPU integrada débil cuenta igual y puede ser más lenta que la CPU. La app todavía no deja elegir la CPU; la prueba de rendimiento lo muestra, y con esos datos se decide si agregar la opción.
 - **Streaming**: Whisper no transcribe en vivo. Hoy se transcribe todo al soltar el atajo.
