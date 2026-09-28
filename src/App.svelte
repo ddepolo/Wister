@@ -27,13 +27,12 @@
         microfono_ms: number;
         pegado: Pegado;
       }
-    | { tipo: "descartado"; motivo: "otra_tecla" | "toque_corto" | "sin_voz" | "sin_texto" };
+    | { tipo: "descartado"; motivo: "otra_tecla" | "toque_corto" | "sin_voz" };
 
   const DESCARTES = {
     otra_tecla: "se tocó otra tecla",
     toque_corto: "toque muy corto",
     sin_voz: "no se detectó voz",
-    sin_texto: "Whisper no devolvió texto",
   };
 
   let version = $state("");

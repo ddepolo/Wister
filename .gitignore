@@ -1,6 +1,7 @@
 /target
 *.wav
 *.bin
+!crates/wister-core/assets/*.bin
 *.bin.part
 node_modules/
 /dist

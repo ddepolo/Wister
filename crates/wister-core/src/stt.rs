@@ -30,6 +30,43 @@ impl Default for Options {
     }
 }
 
+/// Frases que Whisper inventa con audio casi vacío: vienen de los subtítulos de
+/// videos con los que se entrenó. Solo se descartan cuando son todo el texto.
+const FRASES_FANTASMA: &[&str] = &[
+    "gracias",
+    "muchas gracias",
+    "gracias por ver",
+    "gracias por ver el video",
+    "suscribete",
+    "subtitulos por la comunidad de amaraorg",
+    "subtitulos realizados por la comunidad de amaraorg",
+    "thank you",
+    "thanks for watching",
+    "thank you for watching",
+    "you",
+    "obrigado",
+    "obrigada",
+];
+
+/// Si el texto es solamente una de las frases que Whisper suele inventar con silencio.
+pub fn is_hallucination(text: &str) -> bool {
+    let normalizado: String = text
+        .to_lowercase()
+        .chars()
+        .map(|c| match c {
+            'á' | 'à' | 'â' | 'ã' => 'a',
+            'é' | 'è' | 'ê' => 'e',
+            'í' | 'ì' => 'i',
+            'ó' | 'ò' | 'ô' | 'õ' => 'o',
+            'ú' | 'ù' | 'ü' => 'u',
+            otro => otro,
+        })
+        .filter(|c| c.is_alphanumeric() || c.is_whitespace())
+        .collect();
+    let normalizado = normalizado.split_whitespace().collect::<Vec<_>>().join(" ");
+    FRASES_FANTASMA.contains(&normalizado.as_str())
+}
+
 /// Todos los núcleos lógicos hasta 8; más allá whisper.cpp casi no escala.
 pub fn default_threads() -> usize {
     std::thread::available_parallelism()
@@ -128,5 +165,25 @@ impl Engine {
             text: text.trim().to_string(),
             elapsed: start.elapsed(),
         })
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn las_frases_fantasma_solas_se_detectan() {
+        assert!(is_hallucination("Gracias."));
+        assert!(is_hallucination("¡Suscríbete!"));
+        assert!(is_hallucination("  Thank you.  "));
+        assert!(is_hallucination("Subtítulos por la comunidad de Amara.org"));
+    }
+
+    #[test]
+    fn un_texto_real_que_las_contiene_no_se_descarta() {
+        assert!(!is_hallucination("Gracias por la ayuda con el informe."));
+        assert!(!is_hallucination("Hola, ¿qué tal? Gracias."));
+        assert!(!is_hallucination(""));
     }
 }

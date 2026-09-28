@@ -1,7 +1,8 @@
 //! Núcleo de Wister: captura de audio, modelos y transcripción local con Whisper.
 //!
-//! La CLI de la Fase 0 y, más adelante, la app Tauri usan este crate.
+//! Lo usan la CLI (`wister-cli`) y la app (`src-tauri`).
 
 pub mod audio;
 pub mod models;
 pub mod stt;
+pub mod vad;

@@ -20,7 +20,7 @@ La transcripción la hace [Whisper](https://github.com/openai/whisper) (vía [wh
 - **Onda en pantalla** mientras grabás, en una pastilla chiquita que nunca le saca el foco a la app donde estás escribiendo.
 - **Asistente de primer uso**: idioma, descarga del modelo, prueba del micrófono y un primer dictado de prueba.
 - **Configurable**: modelo, micrófono, idioma, atajo, sonidos al grabar y arranque con Windows.
-- **No inventa texto con el silencio**: si no detecta voz, no transcribe (Whisper suele "escuchar" un "Gracias." en grabaciones vacías).
+- **No inventa texto**: un detector de voz (Silero VAD) deja pasar solo lo que dijiste y recorta los silencios. Si solo hubo ruido, no transcribe nada (Whisper suele "escuchar" un "Gracias." en grabaciones vacías).
 
 ## Requisitos
 
@@ -110,7 +110,6 @@ docs/                 arquitectura y mediciones
 ## Roadmap
 
 **Próximo**
-- Detección de voz (VAD) más precisa y filtro de las frases que Whisper inventa ("Gracias.", "¡Suscríbete!").
 - Historial de dictados guardado en la PC y una pantalla nueva con estadísticas de uso.
 - Diccionario personal (nombres propios, marcas, jerga) y reemplazos de texto ("punto y aparte" → salto de línea).
 - Versiones publicadas para descargar, con instalador firmado.
@@ -129,4 +128,4 @@ docs/                 arquitectura y mediciones
 
 [GPL-3.0-or-later](LICENSE): podés usar, estudiar, modificar y compartir Wister, y cualquier versión derivada tiene que seguir siendo libre.
 
-Wister usa [whisper.cpp](https://github.com/ggml-org/whisper.cpp) y los modelos [Whisper](https://github.com/openai/whisper) de OpenAI, ambos con licencia MIT, y [Tauri](https://tauri.app) (MIT/Apache-2.0).
+Wister usa [whisper.cpp](https://github.com/ggml-org/whisper.cpp) y los modelos [Whisper](https://github.com/openai/whisper) de OpenAI, ambos con licencia MIT; [Silero VAD](https://github.com/snakers4/silero-vad) (MIT), cuyo modelo viene incluido en `crates/wister-core/assets/`, y [Tauri](https://tauri.app) (MIT/Apache-2.0).

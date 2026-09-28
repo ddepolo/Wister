@@ -2,6 +2,14 @@
 
 Los cambios de cada versión. El formato sigue [Keep a Changelog](https://keepachangelog.com/es-ES/1.1.0/) y las versiones, [Semantic Versioning](https://semver.org/lang/es/).
 
+## [Sin publicar]
+
+### Agregado
+
+- Detección de voz con Silero VAD (incluido en la app, sin descarga): se transcriben solo los tramos con voz, se recortan los silencios y, si solo hubo ruido (tos, teclado, golpes), no se transcribe nada.
+- Filtro de las frases que Whisper inventa con audio casi vacío ("Gracias.", "¡Suscríbete!", "Thank you.") cuando son todo el texto.
+- CLI: opción `--vad` en `dictate` y `transcribe`.
+
 ## [0.1.0] - 2026-09-27
 
 Primera versión pública.

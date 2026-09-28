@@ -42,20 +42,19 @@ Principios que no se negocian:
 
 Pendiente, en orden aproximado de prioridad:
 
-1. VAD de verdad (Silero o el de whisper.cpp) y filtro de las frases que Whisper inventa ("Gracias.", "¡Suscríbete!") cuando aparecen solas. Hoy solo se filtra por energía (`Audio::has_voice`).
-2. Historial persistente (SQLite) y rediseño de la ventana: barra lateral con secciones, panel más grande y estadísticas de uso.
-3. Diccionario personal (vía `initial_prompt`) y reemplazos de texto.
-4. Publicar versiones en GitHub Releases, con el instalador firmado (por ejemplo, SignPath).
-5. Actualización con un botón (`tauri-plugin-updater`), que busque versiones nuevas solo cuando el usuario lo pida.
-6. Detectar si la PC tiene una GPU compatible para recomendar el modelo (hoy depende de cómo se compiló).
-7. Investigar por qué Whisper tarda ~150–350 ms en la app contra ~80 ms en el bench.
-8. Más adelante: modo manos libres, cancelar con `Esc`, post-procesado con un LLM local, estilos por app, macOS y Linux.
+1. Historial persistente (SQLite) y rediseño de la ventana: barra lateral con secciones, panel más grande y estadísticas de uso.
+2. Diccionario personal (vía `initial_prompt`) y reemplazos de texto.
+3. Publicar versiones en GitHub Releases, con el instalador firmado (por ejemplo, SignPath).
+4. Actualización con un botón (`tauri-plugin-updater`), que busque versiones nuevas solo cuando el usuario lo pida.
+5. Detectar si la PC tiene una GPU compatible para recomendar el modelo (hoy depende de cómo se compiló).
+6. Investigar por qué Whisper tarda ~150–350 ms en la app contra ~80 ms en el bench.
+7. Más adelante: modo manos libres, cancelar con `Esc`, post-procesado con un LLM local, estilos por app, macOS y Linux.
 
 ## Estructura
 
 ```
 Cargo.toml                 workspace (versión, licencia y perfiles compartidos)
-crates/wister-core/        lib: audio.rs, models.rs, stt.rs (sin Tauri)
+crates/wister-core/        lib: audio.rs, models.rs, stt.rs, vad.rs (sin Tauri; el modelo de VAD está en assets/)
 crates/wister-cli/         bin `wister`: CLI para probar y medir
 src-tauri/                 app Tauri (bin `wister-app`): hotkey, dictado, pegar, overlay, config, sonidos
 src/                       UI en Svelte 5 (App, Asistente, CapturaAtajo, Overlay, tipos.ts)
@@ -98,6 +97,7 @@ Trampas que ya costaron tiempo:
 - **Raw Input**: un solo registro por tipo de dispositivo y por proceso; el de Wister reemplaza el del teclado de tao. Las teclas inyectadas llegan con `hDevice` nulo.
 - **Portapapeles**: el hilo dueño tiene que procesar mensajes siempre (Windows le manda `WM_DESTROYCLIPBOARD` de forma sincrónica). `SendInput` no avisa cuando UIPI lo bloquea: se revisa `TokenElevation` de la ventana activa.
 - **Confirmación a los 300 ms**: la grabación arranca al apretar, pero el overlay, el estado "Grabando" y el sonido esperan `DURACION_MINIMA` (el hilo de dictado usa `recv_timeout`).
+- **VAD**: whisper.cpp solo aplica su VAD en `whisper_full`, y whisper-rs usa `whisper_full_with_state`, que lo ignora (activarlo en `FullParams` no hace nada). Se usa `WhisperVadContext` aparte (`vad.rs`), con **un solo hilo** (con más es más lento). Silero v6.2.0 viene embebido con `include_bytes!` (excepción en `.gitignore`).
 - **whisper-rs 0.16**: `WhisperState` guarda un `Arc` al contexto, así que alcanza con guardar el estado; crearlo es caro y se reutiliza. Con menos de 1 s de audio Whisper inventa: `Engine::transcribe` completa con silencio. La primera transcripción con Vulkan compila shaders (~7 s): se "calienta" al cargar el modelo.
 - **rubato 5**: `Fft::new(in, out, 1024, 1, FixedSync::Input)` + `process_all` + `take_data()` devuelve exactamente la longitud esperada.
 - **cpal 0.18**: el nombre del dispositivo sale de `device.to_string()`; la selección es por subcadena, sin distinguir mayúsculas.

@@ -20,7 +20,7 @@ Transcription runs **on your PC** with [Whisper](https://github.com/openai/whisp
 - A small waveform overlay that never steals focus from the app you are typing in.
 - First-run wizard: language, model download, microphone test and a first dictation.
 - Settings: model, microphone, language, hotkey, sounds and start with Windows.
-- Does not hallucinate text from silence: recordings without speech are discarded.
+- Does not hallucinate text: a voice activity detector (Silero VAD) keeps only speech and trims silences; recordings with only noise are discarded.
 
 ## Language
 
@@ -44,4 +44,4 @@ Contributions are welcome, in Spanish or English. See [`CONTRIBUTING.md`](CONTRI
 
 ## License
 
-[GPL-3.0-or-later](LICENSE). Wister uses [whisper.cpp](https://github.com/ggml-org/whisper.cpp) and OpenAI's [Whisper](https://github.com/openai/whisper) models (both MIT) and [Tauri](https://tauri.app) (MIT/Apache-2.0).
+[GPL-3.0-or-later](LICENSE). Wister uses [whisper.cpp](https://github.com/ggml-org/whisper.cpp) and OpenAI's [Whisper](https://github.com/openai/whisper) models (both MIT), [Silero VAD](https://github.com/snakers4/silero-vad) (MIT, model bundled in `crates/wister-core/assets/`) and [Tauri](https://tauri.app) (MIT/Apache-2.0).

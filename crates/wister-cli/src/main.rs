@@ -12,6 +12,7 @@ use indicatif::{ProgressBar, ProgressStyle};
 use wister_core::audio::{self, Audio};
 use wister_core::models::{self, CATALOG};
 use wister_core::stt::{self, Engine, Options};
+use wister_core::vad::Vad;
 
 #[derive(Parser)]
 #[command(
@@ -94,6 +95,9 @@ struct SttArgs {
     /// Fuerza CPU aunque el binario tenga soporte de GPU.
     #[arg(long)]
     cpu: bool,
+    /// Transcribe solo los tramos con voz (Silero VAD), como la app.
+    #[arg(long)]
+    vad: bool,
 }
 
 impl SttArgs {
@@ -104,6 +108,26 @@ impl SttArgs {
             threads: self.threads.unwrap_or_else(stt::default_threads),
         }
     }
+
+    fn vad(&self) -> Result<Option<Vad>> {
+        Ok(if self.vad { Some(Vad::load()?) } else { None })
+    }
+}
+
+/// Con VAD, deja solo los tramos con voz. `None` si no hay voz: no hay nada que transcribir.
+fn apply_vad(vad: &mut Option<Vad>, audio: Audio) -> Result<Option<Audio>> {
+    let Some(vad) = vad else {
+        return Ok(Some(audio));
+    };
+    let start = Instant::now();
+    let speech = vad.speech(&audio)?;
+    eprintln!(
+        "  VAD: {:.1} s de voz en {:.1} s de audio ({})",
+        speech.duration_secs(),
+        audio.duration_secs(),
+        ms(start.elapsed())
+    );
+    Ok((!speech.samples.is_empty()).then_some(speech))
 }
 
 #[derive(Args)]
@@ -271,8 +295,20 @@ fn record(rec: &RecordArgs) -> Result<(Audio, Duration)> {
 fn dictate(args: &SttArgs, rec: &RecordArgs, repeat: bool) -> Result<()> {
     let mut engine = load_engine(&args.model, !args.cpu)?;
     let opts = args.options();
+    let mut vad = args.vad()?;
     loop {
         let (audio, resample_time) = record(rec)?;
+        let Some(audio) = apply_vad(&mut vad, audio)? else {
+            println!(
+                "
+(no se detectó voz)
+"
+            );
+            if repeat {
+                continue;
+            }
+            return Ok(());
+        };
         let transcript = engine.transcribe(&audio, &opts)?;
         println!("\n{}\n", transcript.text);
         eprintln!(
@@ -291,6 +327,10 @@ fn dictate(args: &SttArgs, rec: &RecordArgs, repeat: bool) -> Result<()> {
 fn transcribe_file(file: &std::path::Path, args: &SttArgs) -> Result<()> {
     let audio = Audio::load_wav(file)?.to_whisper()?;
     let mut engine = load_engine(&args.model, !args.cpu)?;
+    let Some(audio) = apply_vad(&mut args.vad()?, audio)? else {
+        println!("(no se detectó voz)");
+        return Ok(());
+    };
     let transcript = engine.transcribe(&audio, &args.options())?;
     println!("{}", transcript.text);
     eprintln!(

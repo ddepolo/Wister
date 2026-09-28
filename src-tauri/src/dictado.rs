@@ -11,6 +11,7 @@ use anyhow::{bail, Context, Result};
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager};
 use wister_core::audio::{self, Audio, Recording};
+use wister_core::vad::Vad;
 use wister_core::{models, stt};
 
 use crate::config::{Config, ConfigActual};
@@ -77,8 +78,8 @@ pub enum Resultado {
 pub enum Descarte {
     OtraTecla,
     ToqueCorto,
+    /// Sin voz según el filtro de energía o el VAD, o una frase que Whisper inventó.
     SinVoz,
-    SinTexto,
 }
 
 #[derive(Default)]
@@ -157,6 +158,8 @@ struct Modelo {
 struct Dictado {
     app: AppHandle,
     config: Config,
+    /// Silero VAD; si no se pudo cargar, queda solo el filtro por energía.
+    vad: Option<Vad>,
     modelo: Option<Modelo>,
     /// Estado al que se vuelve después de cada dictado (`Listo`, o el error de carga).
     reposo: Estado,
@@ -171,9 +174,13 @@ struct Dictado {
 
 impl Dictado {
     fn new(app: &AppHandle, config: Config) -> Result<Self> {
+        let vad = Vad::load()
+            .map_err(|e| eprintln!("sin VAD, solo el filtro por energía: {e:#}"))
+            .ok();
         Ok(Self {
             app: app.clone(),
             config,
+            vad,
             modelo: None,
             reposo: Estado::Iniciando,
             grabacion: None,
@@ -373,17 +380,32 @@ impl Dictado {
         };
         publicar(&self.app, Estado::Transcribiendo);
         let audio_ms = (audio.duration_secs() * 1000.0) as u64;
-        let a16k = audio.to_whisper()?;
+        let mut a16k = audio.to_whisper()?;
+        if let Some(vad) = self.vad.as_mut() {
+            let voz = vad.speech(&a16k)?;
+            if voz.samples.is_empty() {
+                return Ok(Some(Resultado::Descartado {
+                    motivo: Descarte::SinVoz,
+                }));
+            }
+            a16k = voz;
+        }
         let remuestreo = soltado.elapsed();
         let transcript = modelo.engine.transcribe(&a16k, &opciones)?;
         eprintln!(
-            "remuestreo {} ms + whisper {} ms",
+            "remuestreo y VAD {} ms + whisper {} ms",
             remuestreo.as_millis(),
             transcript.elapsed.as_millis()
         );
         if transcript.text.is_empty() {
             return Ok(Some(Resultado::Descartado {
-                motivo: Descarte::SinTexto,
+                motivo: Descarte::SinVoz,
+            }));
+        }
+        if stt::is_hallucination(&transcript.text) {
+            eprintln!("frase fantasma descartada: {:?}", transcript.text);
+            return Ok(Some(Resultado::Descartado {
+                motivo: Descarte::SinVoz,
             }));
         }
         let espera_ms = soltado.elapsed().as_millis() as u64;

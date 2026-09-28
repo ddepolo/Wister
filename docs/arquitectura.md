@@ -33,7 +33,8 @@ Cargo.toml                  workspace: versión, licencia y perfiles compartidos
 crates/wister-core/         biblioteca sin Tauri, reutilizable
   src/audio.rs              captura (cpal + ring buffer), mono, remuestreo (rubato), WAV, has_voice
   src/models.rs             catálogo, descarga reanudable y verificación SHA-1
-  src/stt.rs                motor whisper-rs
+  src/stt.rs                motor whisper-rs y filtro de frases inventadas
+  src/vad.rs                Silero VAD (modelo embebido en assets/)
 crates/wister-cli/          bin `wister`: dictate, transcribe, bench, download...
 src-tauri/                  la app
   src/main.rs               arranque, bandeja, ventanas, plugins y comandos
@@ -59,10 +60,11 @@ scripts/                    dev.ps1, build.ps1, logo.py
 2. **Grabar.** El hilo `wister-dictado` abre el micrófono al instante (tarda unos 20 ms), así que no se pierde el principio.
 3. **Confirmar a los 300 ms.** El overlay, el estado "Grabando" y el sonido de inicio esperan a que el atajo lleve 300 ms apretado. Si antes se toca otra tecla, fue un atajo común (`Ctrl+Shift+T`) y no aparece nada.
 4. **Soltar.** El `Detector` emite `Fin`, o `Cancelado` si se tocó otra tecla o fue un toque corto. Si se cancela, lo grabado se descarta.
-5. **Filtrar.** Si el audio no tiene voz (`Audio::has_voice`), no se transcribe.
-6. **Transcribir.** Se remuestrea a 16 kHz y whisper.cpp transcribe con el modelo que ya está en memoria.
-7. **Pegar.** El hilo `wister-portapapeles` guarda el portapapeles, pone el texto, manda `Ctrl+V` y a los 300 ms restaura lo que había.
-8. **Informar.** El resultado va a la interfaz (evento `resultado`) y el estado vuelve a "En espera".
+5. **Filtrar.** Si el audio no tiene energía de voz (`Audio::has_voice`), no se sigue.
+6. **Detectar la voz.** Se remuestrea a 16 kHz y Silero VAD deja solo los tramos con voz. Si no hay ninguno, no se transcribe.
+7. **Transcribir.** whisper.cpp transcribe con el modelo que ya está en memoria. Si el resultado es solo una frase de las que Whisper inventa ("Gracias."), se descarta.
+8. **Pegar.** El hilo `wister-portapapeles` guarda el portapapeles, pone el texto, manda `Ctrl+V` y a los 300 ms restaura lo que había.
+9. **Informar.** El resultado va a la interfaz (evento `resultado`) y el estado vuelve a "En espera".
 
 ## Módulos
 
@@ -86,7 +88,19 @@ El `Detector` es una máquina de estados sin nada de Win32 y con tests: `Reposo 
 - `cpal` abre el micrófono elegido, o el predeterminado, en su formato nativo (normalmente 48 kHz).
 - El callback corre en el hilo de audio del sistema, que no puede reservar memoria ni bloquearse: solo mezcla a mono y escribe en un ring buffer sin locks (`ringbuf`, 2 s). Un hilo lo vacía cada 10 ms e informa el nivel RMS cada 50 ms para la onda del overlay.
 - Al terminar se remuestrea a 16 kHz con `rubato` (FFT sincrónica).
-- **Filtro de silencio**: `has_voice` pide al menos 200 ms en ventanas de 20 ms con RMS mayor a 0,01. Un RMS global no sirve porque las pausas diluyen la voz. Hace falta porque Whisper **siempre** inventa algo con audio vacío ("Gracias.", "¡Suscríbete!", restos de los subtítulos con los que se entrenó).
+- **Filtro de energía**: `has_voice` pide al menos 200 ms en ventanas de 20 ms con RMS mayor a 0,01. Un RMS global no sirve porque las pausas diluyen la voz. Es instantáneo y descarta el silencio total antes de gastar nada más.
+
+### Detección de voz (`wister-core/src/vad.rs`)
+
+Whisper **siempre** inventa algo con audio sin voz ("Gracias.", "¡Suscríbete!", restos de los subtítulos con los que se entrenó), y el filtro de energía deja pasar ruidos fuertes (tos, teclado, golpes). Por eso, antes de transcribir, pasa por **Silero VAD**:
+
+- Se queda solo con los tramos con voz (con 100 ms de margen para no comerse sílabas) y los une con 100 ms de silencio. Menos audio para Whisper y menos texto inventado al final de la frase.
+- Si no hay tramos con voz, no se transcribe.
+- whisper.cpp puede aplicar el VAD dentro de `whisper_full`, pero whisper-rs usa `whisper_full_with_state`, que lo ignora. Por eso se usa la API independiente (`WhisperVadContext`).
+- El modelo (`ggml-silero-v6.2.0.bin`, 865 KB, MIT) viaja dentro del binario con `include_bytes!` y se escribe en la carpeta de modelos la primera vez, porque whisper.cpp solo lo lee de un archivo. Así funciona desde el primer arranque y sin red.
+- Corre en CPU con **un solo hilo**: para 10 s de audio tarda ~20 ms. Con 2 hilos tarda ~80 ms y con 4, ~180 ms, porque coordinarlos cuesta más de lo que ahorran.
+
+Si al final el texto es solo una de las frases típicas (`stt::is_hallucination`), se descarta. Si aparece dentro de una frase real ("Gracias por la ayuda"), se deja.
 
 ### Transcripción (`wister-core/src/stt.rs`, `dictado.rs`)
 
@@ -160,5 +174,4 @@ La diferencia entre el bench y la app todavía no está explicada. Puede ser que
 
 - **Antivirus**: `SendInput` y la lectura global del teclado pueden disparar falsos positivos. La mitigación es firmar el binario (hay firma gratuita para proyectos open source, como SignPath) y publicar el código.
 - **Detección de GPU**: el modelo recomendado depende de cómo se compiló el binario. Un build con Vulkan en una PC sin GPU compatible recomendaría `turbo`, que en CPU es lento.
-- **VAD**: el filtro por energía deja pasar ruidos fuertes sin voz. Queda pendiente un VAD real (Silero o el de whisper.cpp) y filtrar las frases que Whisper inventa cuando aparecen solas.
 - **Streaming**: Whisper no transcribe en vivo. Hoy se transcribe todo al soltar el atajo.
