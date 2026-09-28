@@ -5,6 +5,7 @@
   import logo from "../src-tauri/icons/icon.svg?no-inline";
   import Asistente from "./Asistente.svelte";
   import Configuracion from "./Configuracion.svelte";
+  import Diccionario from "./Diccionario.svelte";
   import Historial from "./Historial.svelte";
   import Icono from "./Icono.svelte";
   import Inicio from "./Inicio.svelte";
@@ -15,7 +16,7 @@
   const SECCIONES: [Seccion, string][] = [
     ["inicio", "Inicio"],
     ["historial", "Historial"],
-    // "diccionario" vuelve cuando esté hecho el diccionario personal (Diccionario.svelte).
+    ["diccionario", "Diccionario"],
     ["configuracion", "Configuración"],
   ];
 
@@ -114,6 +115,9 @@
       <div class="seccion" hidden={seccion !== "historial"}>
         <h1>Historial</h1>
         <Historial guardando={config.guardar_historial} />
+      </div>
+      <div class="seccion" hidden={seccion !== "diccionario"}>
+        <Diccionario {config} {cambiar} />
       </div>
       <div class="seccion" hidden={seccion !== "configuracion"}>
         <Configuracion {config} {cambiar} visible={seccion === "configuracion"} />

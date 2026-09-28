@@ -5,6 +5,7 @@ mod actualizar;
 mod bandeja;
 mod config;
 mod diagnostico;
+mod diccionario;
 mod dictado;
 mod historial;
 mod hotkey;
@@ -50,6 +51,7 @@ fn main() {
             historial::borrar_historial,
             historial::estadisticas,
             salir,
+            abrir_pagina,
             actualizar::buscar_actualizacion,
             actualizar::instalar_actualizacion,
             diagnostico::exportar_diagnostico,
@@ -82,6 +84,29 @@ fn main() {
         })
         .run(tauri::generate_context!())
         .expect("no se pudo iniciar Wister");
+}
+
+/// Páginas del proyecto que puede abrir la ventana, en el navegador. Son fijas: la
+/// interfaz no puede pedir que se abra cualquier dirección.
+#[tauri::command]
+fn abrir_pagina(pagina: &str) -> Result<(), String> {
+    let url = match pagina {
+        "repositorio" => "https://github.com/ddepolo/Wister",
+        "problemas" => "https://github.com/ddepolo/Wister/issues",
+        "licencia" => "https://github.com/ddepolo/Wister/blob/main/LICENSE",
+        otra => return Err(format!("página desconocida: {otra}")),
+    };
+    #[cfg(windows)]
+    {
+        // El Explorador abre las direcciones web con el navegador predeterminado.
+        std::process::Command::new("explorer")
+            .arg(url)
+            .spawn()
+            .map_err(|e| format!("no se pudo abrir el navegador: {e}"))?;
+    }
+    #[cfg(not(windows))]
+    let _ = url;
+    Ok(())
 }
 
 /// Cierra Wister del todo (cerrar la ventana solo la esconde en la bandeja).

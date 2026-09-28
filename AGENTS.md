@@ -1,6 +1,6 @@
-# CLAUDE.md
+# AGENTS.md
 
-Contexto del proyecto para Claude Code (y para cualquiera que se sume). Leelo entero antes de tocar código. El diseño detallado, con los porqués, está en [`docs/arquitectura.md`](docs/arquitectura.md).
+Contexto del proyecto para Codex (y para cualquiera que se sume). Leelo entero antes de tocar código. El diseño detallado, con los porqués, está en [`docs/arquitectura.md`](docs/arquitectura.md).
 
 ## Qué es Wister
 
@@ -38,16 +38,15 @@ Principios que no se negocian:
 
 ## Estado
 
-**Versión 0.2.0**: dictado push-to-talk completo (atajo, grabación, transcripción, pegado) con VAD, overlay, ventana con barra lateral (Inicio con estadísticas, Historial en SQLite, Configuración), asistente de primer uso, actualización con un botón y dos instaladores NSIS (Vulkan y solo CPU) en GitHub Releases. El detalle está en `CHANGELOG.md`. Sin publicar: registro de funcionamiento, prueba de rendimiento de los modelos, exportar diagnóstico, micrófono desde la bandeja, volumen del micrófono, diccionario (vocabulario y reemplazos) y "Acerca de".
-
-Cancelar un dictado con `Esc` ya funciona: cualquier otra tecla apretada mientras se graba lo cancela.
+**Versión 0.2.0**: dictado push-to-talk completo (atajo, grabación, transcripción, pegado) con VAD, overlay, ventana con barra lateral (Inicio con estadísticas, Historial en SQLite, Configuración), asistente de primer uso, actualización con un botón y dos instaladores NSIS (Vulkan y solo CPU) en GitHub Releases. El detalle está en `CHANGELOG.md`. Sin publicar: registro de funcionamiento, prueba de rendimiento de los modelos, exportar diagnóstico, micrófono desde la bandeja y volumen del micrófono.
 
 Pendiente, en orden aproximado de prioridad:
 
-1. Workflow de GitHub Actions que compile los instaladores al crear un tag, y firmarlos (SignPath Foundation, gratis para proyectos libres, firma solo lo compilado en CI).
-2. Decidir si hace falta elegir CPU o GPU a mano: con Vulkan ya se detecta si hay GPU, pero una integrada débil puede ser más lenta que la CPU (la prueba de rendimiento lo muestra).
-3. Investigar por qué Whisper tarda ~150–350 ms en la app contra ~80 ms en el bench. Pista: con la GPU recién usada, la prueba de rendimiento da ~110 ms con 10 s de audio; puede ser que la GPU baje los relojes en reposo.
-4. Más adelante: modo manos libres, post-procesado con un LLM local, estilos por app, macOS y Linux.
+1. Diccionario personal (vía `initial_prompt`) y reemplazos de texto. La sección está hecha pero oculta (`Diccionario.svelte`; se vuelve a agregar en `SECCIONES` de `App.svelte`). Diseño propuesto: vocabulario en la pista de Whisper y reemplazos después de transcribir, guardados en `config.json`.
+2. Workflow de GitHub Actions que compile los instaladores al crear un tag, y firmarlos (SignPath Foundation, gratis para proyectos libres, firma solo lo compilado en CI).
+3. Decidir si hace falta elegir CPU o GPU a mano: con Vulkan ya se detecta si hay GPU, pero una integrada débil puede ser más lenta que la CPU (la prueba de rendimiento lo muestra).
+4. Investigar por qué Whisper tarda ~150–350 ms en la app contra ~80 ms en el bench. Pista: con la GPU recién usada, la prueba de rendimiento da ~110 ms con 10 s de audio; puede ser que la GPU baje los relojes en reposo.
+5. Más adelante: modo manos libres, cancelar con `Esc`, post-procesado con un LLM local, estilos por app, macOS y Linux.
 
 ## Estructura
 
@@ -55,7 +54,7 @@ Pendiente, en orden aproximado de prioridad:
 Cargo.toml                 workspace (versión, licencia y perfiles compartidos)
 crates/wister-core/        lib: audio.rs, models.rs, stt.rs, vad.rs (sin Tauri; el modelo de VAD está en assets/)
 crates/wister-cli/         bin `wister`: CLI para probar y medir
-src-tauri/                 app Tauri (bin `wister-app`): hotkey, dictado, pegar, overlay, bandeja, config, diccionario, volumen, historial, sonidos, registro, sistema, rendimiento, diagnostico
+src-tauri/                 app Tauri (bin `wister-app`): hotkey, dictado, pegar, overlay, bandeja, config, volumen, historial, sonidos, registro, sistema, rendimiento, diagnostico
 src/                       UI en Svelte 5: App (barra lateral), Inicio, Historial, Diccionario, Configuracion, Rendimiento, Asistente, Overlay; estilos.css y tipos.ts
 scripts/                   dev.ps1, build.ps1, logo.py
 docs/arquitectura.md       diseño, módulos y decisiones

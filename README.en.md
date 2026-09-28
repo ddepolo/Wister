@@ -22,6 +22,7 @@ Transcription runs **on your PC** with [Whisper](https://github.com/openai/whisp
 - Local dictation history (SQLite) with search, copy and delete; it can be turned off and wiped.
 - Usage stats: words dictated today, this week and overall, time saved compared to typing, streak and speaking speed.
 - Settings: model, microphone (also from the tray menu) and its volume, language, hotkey, sounds and start with Windows.
+- Personal dictionary: words Whisper should know (names, brands, jargon) and replacements that always apply, such as "punto y aparte" → line break or removing filler words.
 - Diagnostics: a benchmark that tells which model runs best on your PC, and a plain-text report to ask for help (it never includes what you dictated).
 - Does not hallucinate text: a voice activity detector (Silero VAD) keeps only speech and trims silences; recordings with only noise are discarded.
 

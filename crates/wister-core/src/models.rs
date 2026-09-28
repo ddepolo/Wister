@@ -63,7 +63,7 @@ pub const CATALOG: &[Model] = &[
         name: "large-v3-turbo",
         size_mb: 1536,
         sha1: "4af2b29d7ec73d781377bfd1758ca957a807e941",
-        note: "sin cuantizar: pesa el triple y casi no mejora a q5_0",
+        note: "el más pesado; solo para placas de video potentes",
     },
 ];
 

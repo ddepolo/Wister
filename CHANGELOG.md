@@ -11,10 +11,19 @@ Los cambios de cada versión. El formato sigue [Keep a Changelog](https://keepac
 - Configuración → Diagnóstico → **Exportar diagnóstico**: guarda en Descargas un archivo de texto con los datos de la PC (Windows, CPU, RAM, placas de video y la GPU que usa Whisper), la configuración, los modelos, los micrófonos y el registro, para pedir ayuda desde otra máquina.
 - Elegir el micrófono desde la bandeja: clic derecho → Micrófono, con "Predeterminado de Windows" y los que estén conectados (la lista se actualiza sola al enchufar uno).
 - Configuración: volumen del micrófono (el mismo de Windows), aviso con un botón para activarlo si está silenciado, y un medidor de nivel con "Probar".
+- Sección **Diccionario**:
+  - **Vocabulario**: palabras que Whisper no conoce (nombres propios, marcas, jerga) y que se le pasan como pista en cada dictado para que las escriba así.
+  - **Reemplazos**: cambios sobre el texto transcripto, que se aplican siempre ("Chat GPT" → "ChatGPT"). Buscan palabras o frases completas sin distinguir mayúsculas; con el segundo campo vacío borran la frase, y `\n` es un salto de línea (para "punto y aparte").
+- "Acerca de Wister" en Configuración, con quién lo hace, la licencia y enlaces al código, a los problemas reportados y a la licencia.
 
 ### Cambiado
 
+- La nota de `large-v3-turbo` ahora dice que es el más pesado y que conviene solo con placas de video potentes.
 - Con Vulkan, el modelo recomendado depende de si la PC tiene una GPU compatible, y no solo de cómo se compiló la app. Sin GPU, se recomienda `small` y el estado dice que usa la CPU.
+
+### Corregido
+
+- El medidor de nivel de Configuración se apaga bien si se empieza a dictar o se arranca la prueba de rendimiento (antes quedaba congelado).
 
 ## [0.2.0] - 2026-09-27
 

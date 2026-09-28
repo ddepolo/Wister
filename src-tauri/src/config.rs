@@ -12,6 +12,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 use tauri_plugin_autostart::ManagerExt;
 use wister_core::{audio, models};
 
+use crate::diccionario::Reemplazo;
 use crate::dictado::{self, CanalDictado, Mensaje};
 use crate::hotkey;
 
@@ -34,6 +35,10 @@ pub struct Config {
     pub atajo: Vec<u32>,
     /// Si cada dictado se guarda en el historial (`historial.db`).
     pub guardar_historial: bool,
+    /// Palabras del diccionario personal, que se le pasan a Whisper como pista.
+    pub vocabulario: Vec<String>,
+    /// Cambios que se aplican al texto transcripto, en orden.
+    pub reemplazos: Vec<Reemplazo>,
 }
 
 impl Default for Config {
@@ -47,6 +52,8 @@ impl Default for Config {
             sonidos: false,
             atajo: hotkey::ATAJO_POR_DEFECTO.to_vec(),
             guardar_historial: true,
+            vocabulario: Vec::new(),
+            reemplazos: Vec::new(),
         }
     }
 }
@@ -337,6 +344,8 @@ mod tests {
         assert!(!c.sonidos);
         assert_eq!(c.atajo, hotkey::ATAJO_POR_DEFECTO);
         assert!(c.guardar_historial);
+        assert!(c.vocabulario.is_empty());
+        assert!(c.reemplazos.is_empty());
     }
 
     #[test]
@@ -373,6 +382,11 @@ mod tests {
             sonidos: true,
             atajo: vec![0xA3],
             guardar_historial: false,
+            vocabulario: vec!["Wister".into(), "Tauri".into()],
+            reemplazos: vec![Reemplazo {
+                buscar: "Chat GPT".into(),
+                reemplazar: "ChatGPT".into(),
+            }],
         };
         let texto = serde_json::to_string(&c).unwrap();
         assert_eq!(serde_json::from_str::<Config>(&texto).unwrap(), c);

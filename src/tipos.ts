@@ -54,7 +54,13 @@ export type Config = {
   sonidos: boolean;
   atajo: number[];
   guardar_historial: boolean;
+  /** Palabras del diccionario personal. */
+  vocabulario: string[];
+  /** Cambios sobre el texto transcripto; en `reemplazar`, `\n` es un salto de línea. */
+  reemplazos: Reemplazo[];
 };
+
+export type Reemplazo = { buscar: string; reemplazar: string };
 
 export type Modelo = {
   nombre: string;

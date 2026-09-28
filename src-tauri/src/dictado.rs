@@ -15,6 +15,7 @@ use wister_core::vad::Vad;
 use wister_core::{models, stt};
 
 use crate::config::{Config, ConfigActual};
+use crate::diccionario;
 use crate::historial;
 use crate::hotkey::{Evento, Motivo, DURACION_MINIMA};
 use crate::overlay;
@@ -224,8 +225,8 @@ impl Dictado {
         match mensaje {
             Mensaje::Atajo(evento) => self.atender(evento),
             Mensaje::Config(config) => {
-                // El idioma y el micrófono se leen en cada dictado; el modelo solo se
-                // recarga si cambió.
+                // El idioma, el micrófono y el vocabulario se leen en cada dictado; el
+                // modelo solo se recarga si cambió.
                 self.config = config;
                 self.cargar_modelo();
             }
@@ -235,7 +236,10 @@ impl Dictado {
                 }
             }
             Mensaje::ProbarMicrofono(nombre) => {
-                self.detener_prueba();
+                // Cambio de micrófono con el medidor andando: sin avisar, porque sigue.
+                if let Some(r) = self.prueba.take() {
+                    r.stop();
+                }
                 let app = self.app.clone();
                 let nivel = move |rms: f32| {
                     let _ = app.emit_to("config", "nivel_prueba", rms);
@@ -324,6 +328,7 @@ impl Dictado {
         // `stop` además termina el hilo que junta las muestras: no alcanza con soltarla.
         if let Some(r) = self.prueba.take() {
             r.stop();
+            let _ = self.app.emit_to("config", "prueba_detenida", ());
         }
     }
 
@@ -337,6 +342,7 @@ impl Dictado {
     fn opciones(&self) -> stt::Options {
         stt::Options {
             language: self.config.idioma.clone(),
+            initial_prompt: diccionario::pista(&self.config.vocabulario),
             ..Default::default()
         }
     }
@@ -536,16 +542,27 @@ impl Dictado {
                 motivo: Descarte::SinVoz,
             }));
         }
-        if stt::is_hallucination(&transcript.text) {
+        let repite_la_pista = opciones
+            .initial_prompt
+            .as_deref()
+            .is_some_and(|p| diccionario::es_la_pista(&transcript.text, p));
+        if stt::is_hallucination(&transcript.text) || repite_la_pista {
             log::info!("frase fantasma descartada: {:?}", transcript.text);
             return Ok(Some(Resultado::Descartado {
                 motivo: Descarte::SinVoz,
             }));
         }
+        let texto = diccionario::reemplazar(&transcript.text, &self.config.reemplazos);
+        if texto.trim().is_empty() {
+            // Todo lo dicho era algo que se borra, como una muletilla.
+            return Ok(Some(Resultado::Descartado {
+                motivo: Descarte::SinVoz,
+            }));
+        }
         let espera_ms = soltado.elapsed().as_millis() as u64;
-        let pegado = self.pegar(&transcript.text);
+        let pegado = self.pegar(&texto);
         Ok(Some(Resultado::Texto {
-            texto: transcript.text,
+            texto,
             audio_ms,
             espera_ms,
             microfono_ms: grabacion.microfono_ms,

@@ -61,6 +61,11 @@
     const medidor = listen<number>("nivel_prueba", ({ payload }) => {
       if (probando) nivel = Math.min(1, Math.sqrt(payload / 0.12));
     });
+    // El dictado y la prueba de rendimiento tienen prioridad y cierran el micrófono.
+    const fin = listen("prueba_detenida", () => {
+      probando = false;
+      nivel = 0;
+    });
     const progreso = listen<{ bajado: number; total: number | null }>(
       "actualizacion",
       ({ payload }) => {
@@ -85,6 +90,7 @@
       window.removeEventListener("focus", refrescar);
       window.removeEventListener("blur", dejarDeProbar);
       medidor.then((dejar) => dejar());
+      fin.then((dejar) => dejar());
       dejarDeProbar();
       escucha.then((dejar) => dejar());
       progreso.then((dejar) => dejar());
@@ -214,6 +220,8 @@
       actualizacion = { tipo: "error", mensaje: String(e) };
     }
   }
+
+  const abrir = (pagina: string) => intentar(() => invoke("abrir_pagina", { pagina }));
 
   async function exportarDiagnostico() {
     diagnostico = { tipo: "exportando" };
@@ -411,6 +419,20 @@
 
 <section class="tarjeta">
   <h2>Acerca de Wister</h2>
+  <p class="acerca">
+    Wister es un proyecto de <strong>Diego Depolo</strong> (y Claude =P). Es de software libre para
+    la comunidad (licencia GPL-3.0): podés usarlo, estudiar el código, modificarlo, compartirlo o
+    sumarte al proyecto siempre que lo que hagas a partir de él también sea libre.
+  </p>
+  <p class="acerca muted">
+    Transcribe con Whisper, de OpenAI, a través de whisper.cpp, y detecta la voz con Silero VAD.
+    Todo corre en tu PC.
+  </p>
+  <div class="enlaces">
+    <button class="enlace" onclick={() => abrir("repositorio")}>Código fuente</button>
+    <button class="enlace" onclick={() => abrir("problemas")}>Reportar un problema</button>
+    <button class="enlace" onclick={() => abrir("licencia")}>Licencia</button>
+  </div>
   <div class="version">
     <span>Versión {version}</span>
     {#if actualizacion.tipo === "inactiva" || actualizacion.tipo === "al_dia" || actualizacion.tipo === "error"}
@@ -589,6 +611,16 @@
   .peligro {
     border-color: var(--rojo);
     color: var(--rojo);
+  }
+  .acerca {
+    margin: 0 0 8px;
+    font-size: 13px;
+    line-height: 1.5;
+  }
+  .enlaces {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 14px;
   }
   .version {
     display: flex;

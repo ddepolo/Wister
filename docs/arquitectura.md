@@ -45,6 +45,7 @@ src-tauri/                  la app
   src/pegar.rs              portapapeles, Ctrl+V y restauración
   src/overlay.rs            mostrar/ocultar la pastilla sin activarla
   src/config.rs             config.json y los comandos de la ventana de configuración
+  src/diccionario.rs        pista de vocabulario para Whisper y reemplazos de texto
   src/historial.rs          historial de dictados en SQLite y sus comandos
   src/sonidos.rs            tonos de inicio y fin generados en memoria
   src/registro.rs           logger del crate `log` que escribe wister.log
@@ -56,7 +57,7 @@ src/                        interfaz en Svelte 5
   App.svelte                barra lateral y secciones (o el asistente)
   Inicio.svelte             estadísticas y últimos dictados
   Historial.svelte          buscador y lista del historial (también el resumen de Inicio)
-  Diccionario.svelte        lugar reservado para el diccionario personal
+  Diccionario.svelte        vocabulario y reemplazos
   Configuracion.svelte      modelo, micrófono, idioma, atajo, preferencias, historial y diagnóstico
   Rendimiento.svelte        la prueba de rendimiento
   Icono.svelte              íconos de la barra lateral
@@ -161,6 +162,12 @@ Si un dictado va a la misma ventana que el anterior antes de 60 s, se le antepon
 - La búsqueda usa una función SQL propia, `plegar` (minúsculas y sin tildes; la `ñ` se deja), con `instr` en vez de `LIKE` para no tener que escapar `%` y `_`.
 - La interfaz se actualiza con el evento `historial` (`agregado`, `borrado`, `borrado_todo`, `error`) sin volver a pedir la lista.
 - **Estadísticas** (comando `estadisticas`): una consulta agrupa los dictados por día del calendario local (`date(..., 'localtime')`) y cuenta cuántos días atrás es cada uno; el resto se calcula en Rust (`resumir`, con tests). El tiempo ahorrado es lo que se tardaría tipeando a 40 palabras por minuto menos lo que duró el audio. La racha cuenta días seguidos hasta hoy o hasta ayer, para que no se corte antes del primer dictado del día.
+
+### Diccionario (`diccionario.rs`, `Diccionario.svelte`)
+
+- Se guarda en `config.json`: `vocabulario` (lista de palabras) y `reemplazos` (pares `buscar`/`reemplazar`, en orden).
+- **Vocabulario**: las palabras, sin repetidas, se juntan con comas ("Wister, Tauri, Svelte.") y van como `initial_prompt` en cada dictado. Tope de 600 caracteres: Whisper usa como mucho la mitad de su contexto de texto y descarta el principio. La pista inclina a Whisper, pero no le gana a una forma común del idioma: "de Marco" le gana a "Demarco" aunque "Demarco" esté en el vocabulario. Para eso están los reemplazos. Si Whisper devuelve la pista misma (pasa con audio casi vacío), se descarta como las frases fantasma.
+- **Reemplazos**: se aplican en orden sobre el texto transcripto, antes de pegar y de guardarlo en el historial. Se buscan palabras o frases completas, carácter por carácter y sin distinguir mayúsculas (el borde solo se exige si la búsqueda empieza o termina con letra o número). `\n` en el reemplazo es un salto de línea: se sacan el espacio de antes y la puntuación que Whisper pone después ("Hola. Punto y aparte. Chau." → "Hola.\nChau."). Un reemplazo vacío borra la frase y la coma repetida. Si todo el texto se borra, el dictado se descarta.
 
 ### Volumen del micrófono (`volumen.rs`)
 

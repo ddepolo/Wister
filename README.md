@@ -22,6 +22,7 @@ La transcripción la hace [Whisper](https://github.com/openai/whisper) (vía [wh
 - **Estadísticas de uso**: palabras dictadas hoy, en la semana y en total, tiempo ahorrado contra tipear, días seguidos y velocidad.
 - **Historial en tu PC**: cada dictado queda guardado con la fecha y la app donde lo pegaste, con buscador y botones para copiarlo o borrarlo. Se puede desactivar y borrar todo.
 - **Configurable**: modelo, micrófono (también desde la bandeja), su volumen, idioma, atajo, sonidos al grabar y arranque con Windows.
+- **Diccionario personal**: palabras que Whisper tiene que conocer (nombres, marcas, jerga) y reemplazos que se aplican siempre, como "punto y aparte" → salto de línea o sacar muletillas.
 - **Diagnóstico**: una prueba de rendimiento te dice qué modelo anda mejor en tu PC, y "Exportar diagnóstico" arma un archivo de texto para pedir ayuda (sin nada de lo que dictaste).
 - **Se actualiza con un botón**: "Buscar actualizaciones" baja la versión nueva, verifica su firma y la instala. No se conecta sola.
 - **No inventa texto**: un detector de voz (Silero VAD) deja pasar solo lo que dijiste y recorta los silencios. Si solo hubo ruido, no transcribe nada (Whisper suele "escuchar" un "Gracias." en grabaciones vacías).
@@ -128,12 +129,11 @@ docs/                 arquitectura y mediciones
 ## Roadmap
 
 **Próximo**
-- Diccionario personal (nombres propios, marcas, jerga) y reemplazos de texto ("punto y aparte" → salto de línea).
-- Versiones publicadas para descargar, con instalador firmado.
+- Instaladores compilados en GitHub y firmados, para que Windows no avise que el editor es desconocido.
+- Elegir a mano si Whisper usa la placa de video o el procesador, para las PCs donde la GPU integrada es más lenta.
 
 **Más adelante**
-- Modo manos libres (tocar para empezar y para terminar) y cancelar con `Esc`.
-- Actualización con un botón, que busca versiones nuevas solo cuando lo pedís.
+- Modo manos libres (tocar para empezar y para terminar).
 - Post-procesado opcional con un modelo de lenguaje local, para sacar muletillas y ajustar el tono.
 - macOS y Linux.
 
