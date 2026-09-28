@@ -15,6 +15,7 @@ use wister_core::vad::Vad;
 use wister_core::{models, stt};
 
 use crate::config::{Config, ConfigActual};
+use crate::historial;
 use crate::hotkey::{Evento, Motivo, DURACION_MINIMA};
 use crate::overlay;
 use crate::pegar::Pegado;
@@ -67,6 +68,8 @@ pub enum Resultado {
         /// Lo que tardó en abrirse el micrófono al apretar el atajo.
         microfono_ms: u64,
         pegado: Pegado,
+        /// Título de la ventana activa al soltar el atajo.
+        app: Option<String>,
     },
     Descartado {
         motivo: Descarte,
@@ -302,6 +305,18 @@ impl Dictado {
                 eprintln!("{r:?}");
                 let _ = self.app.emit("resultado", &r);
                 publicar(&self.app, self.reposo.clone());
+                // Después de ocultar el overlay: guardar puede tardar (la primera vez abre la base).
+                if let Resultado::Texto {
+                    texto,
+                    audio_ms,
+                    app,
+                    ..
+                } = &r
+                {
+                    if self.config.guardar_historial {
+                        historial::anotar(&self.app, texto, *audio_ms, app.as_deref());
+                    }
+                }
             }
             Ok(None) => publicar(&self.app, self.reposo.clone()),
             Err(e) => publicar_error(&self.app, &e),
@@ -369,6 +384,8 @@ impl Dictado {
             sonidos::reproducir(Sonido::Fin);
         }
         let soltado = Instant::now();
+        // Se toma ahora: mientras Whisper transcribe el usuario puede cambiar de ventana.
+        let app = ventana_activa();
         if !audio.has_voice() {
             return Ok(Some(Resultado::Descartado {
                 motivo: Descarte::SinVoz,
@@ -416,6 +433,7 @@ impl Dictado {
             espera_ms,
             microfono_ms: grabacion.microfono_ms,
             pegado,
+            app,
         }))
     }
 
@@ -430,6 +448,16 @@ impl Dictado {
             mensaje: "pegar todavía solo funciona en Windows".into(),
         }
     }
+}
+
+#[cfg(windows)]
+fn ventana_activa() -> Option<String> {
+    crate::pegar::titulo_ventana_activa()
+}
+
+#[cfg(not(windows))]
+fn ventana_activa() -> Option<String> {
+    None
 }
 
 fn cargar_engine(nombre: &str, opciones: &stt::Options) -> Result<stt::Engine> {

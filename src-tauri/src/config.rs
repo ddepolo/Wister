@@ -32,6 +32,8 @@ pub struct Config {
     pub sonidos: bool,
     /// Teclas del atajo (códigos virtuales de Windows, con lado).
     pub atajo: Vec<u32>,
+    /// Si cada dictado se guarda en el historial (`historial.db`).
+    pub guardar_historial: bool,
 }
 
 impl Default for Config {
@@ -44,6 +46,7 @@ impl Default for Config {
             mostrar_overlay: true,
             sonidos: false,
             atajo: hotkey::ATAJO_POR_DEFECTO.to_vec(),
+            guardar_historial: true,
         }
     }
 }
@@ -329,6 +332,7 @@ mod tests {
         assert!(c.mostrar_overlay);
         assert!(!c.sonidos);
         assert_eq!(c.atajo, hotkey::ATAJO_POR_DEFECTO);
+        assert!(c.guardar_historial);
     }
 
     #[test]
@@ -364,6 +368,7 @@ mod tests {
             mostrar_overlay: false,
             sonidos: true,
             atajo: vec![0xA3],
+            guardar_historial: false,
         };
         let texto = serde_json::to_string(&c).unwrap();
         assert_eq!(serde_json::from_str::<Config>(&texto).unwrap(), c);

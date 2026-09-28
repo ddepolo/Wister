@@ -19,6 +19,7 @@ La transcripción la hace [Whisper](https://github.com/openai/whisper) (vía [wh
 - **Funciona con o sin GPU**: aprovecha la placa de video con Vulkan (NVIDIA, AMD o Intel), y si no hay, usa el procesador.
 - **Onda en pantalla** mientras grabás, en una pastilla chiquita que nunca le saca el foco a la app donde estás escribiendo.
 - **Asistente de primer uso**: idioma, descarga del modelo, prueba del micrófono y un primer dictado de prueba.
+- **Historial en tu PC**: cada dictado queda guardado con la fecha y la app donde lo pegaste, con buscador y botones para copiarlo o borrarlo. Se puede desactivar y borrar todo.
 - **Configurable**: modelo, micrófono, idioma, atajo, sonidos al grabar y arranque con Windows.
 - **No inventa texto**: un detector de voz (Silero VAD) deja pasar solo lo que dijiste y recorta los silencios. Si solo hubo ruido, no transcribe nada (Whisper suele "escuchar" un "Gracias." en grabaciones vacías).
 
@@ -66,6 +67,7 @@ Los modelos se guardan en `%LOCALAPPDATA%\Wister\data\models`.
 - No hay telemetría, analíticas ni reportes automáticos de errores.
 - La única conexión a internet es la descarga de modelos, cuando la pedís.
 - La configuración se guarda en `%APPDATA%\ar.wister.app\config.json`.
+- El historial de dictados (el texto, no el audio) se guarda en `%APPDATA%\ar.wister.app\historial.db`, y solo si la opción está activada. "Borrar todo" lo elimina del archivo.
 
 ## Compilar desde el código
 
@@ -110,7 +112,7 @@ docs/                 arquitectura y mediciones
 ## Roadmap
 
 **Próximo**
-- Historial de dictados guardado en la PC y una pantalla nueva con estadísticas de uso.
+- Una ventana nueva con barra lateral y estadísticas de uso (palabras dictadas, tiempo ahorrado).
 - Diccionario personal (nombres propios, marcas, jerga) y reemplazos de texto ("punto y aparte" → salto de línea).
 - Versiones publicadas para descargar, con instalador firmado.
 

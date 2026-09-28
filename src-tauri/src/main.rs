@@ -3,6 +3,7 @@
 
 mod config;
 mod dictado;
+mod historial;
 mod hotkey;
 mod overlay;
 mod pegar;
@@ -27,6 +28,7 @@ fn main() {
         ))
         .manage(dictado::EstadoActual::default())
         .manage(config::Descargas::default())
+        .manage(historial::Historial::default())
         .invoke_handler(tauri::generate_handler![
             dictado::estado_actual,
             config::obtener_config,
@@ -39,6 +41,9 @@ fn main() {
             config::probar_microfono,
             config::detener_prueba_microfono,
             config::pausar_atajo,
+            historial::listar_historial,
+            historial::borrar_dictado,
+            historial::borrar_historial,
         ])
         .setup(|app| {
             crear_bandeja(app.handle())?;

@@ -9,6 +9,13 @@ Los cambios de cada versión. El formato sigue [Keep a Changelog](https://keepac
 - Detección de voz con Silero VAD (incluido en la app, sin descarga): se transcriben solo los tramos con voz, se recortan los silencios y, si solo hubo ruido (tos, teclado, golpes), no se transcribe nada.
 - Filtro de las frases que Whisper inventa con audio casi vacío ("Gracias.", "¡Suscríbete!", "Thank you.") cuando son todo el texto.
 - CLI: opción `--vad` en `dictate` y `transcribe`.
+- Historial de dictados guardado en la PC (SQLite, en `%APPDATA%\ar.wister.app\historial.db`): texto, fecha, duración del audio, cantidad de palabras y título de la ventana donde se pegó. Reemplaza a la lista de "Últimos dictados", que se perdía al cerrar la app.
+- Sección Historial con buscador (sin distinguir mayúsculas ni tildes, también por la app), agrupada por día, con botones para copiar y borrar cada dictado.
+- Configuración: casilla "Guardar el historial de dictados en esta PC" (activada por defecto) y botón "Borrar todo". Lo borrado se sobrescribe en el archivo.
+
+### Cambiado
+
+- La ventana ya no muestra los tiempos de cada dictado; solo avisa si el último se descartó o no se pudo pegar.
 
 ## [0.1.0] - 2026-09-27
 

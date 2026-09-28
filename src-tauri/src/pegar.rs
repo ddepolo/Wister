@@ -39,7 +39,7 @@ pub fn separar(texto: &str, continua: bool) -> String {
 }
 
 #[cfg(windows)]
-pub use windows::Pegador;
+pub use windows::{titulo_ventana_activa, Pegador};
 
 #[cfg(windows)]
 mod windows {
@@ -68,8 +68,9 @@ mod windows {
         VK_CONTROL, VK_LWIN, VK_MENU, VK_RWIN, VK_SHIFT,
     };
     use windows_sys::Win32::UI::WindowsAndMessaging::{
-        CreateWindowExW, DispatchMessageW, GetForegroundWindow, GetWindowThreadProcessId,
-        PeekMessageW, TranslateMessage, HWND_MESSAGE, MSG, PM_REMOVE,
+        CreateWindowExW, DispatchMessageW, GetForegroundWindow, GetWindowTextLengthW,
+        GetWindowTextW, GetWindowThreadProcessId, PeekMessageW, TranslateMessage, HWND_MESSAGE,
+        MSG, PM_REMOVE,
     };
 
     use super::{separar, Pegado, CONTINUACION};
@@ -377,6 +378,25 @@ mod windows {
                 return false;
             }
             esperar_bombeando(BOMBEO);
+        }
+    }
+
+    /// Título de la ventana activa (para el historial), o `None` si no tiene.
+    pub fn titulo_ventana_activa() -> Option<String> {
+        unsafe {
+            let ventana = GetForegroundWindow();
+            if ventana.is_null() {
+                return None;
+            }
+            let largo = GetWindowTextLengthW(ventana);
+            if largo <= 0 {
+                return None;
+            }
+            let mut buffer = vec![0u16; largo as usize + 1];
+            let copiados = GetWindowTextW(ventana, buffer.as_mut_ptr(), buffer.len() as i32);
+            let titulo = String::from_utf16_lossy(&buffer[..copiados.max(0) as usize]);
+            let titulo = titulo.trim();
+            (!titulo.is_empty()).then(|| titulo.to_owned())
         }
     }
 

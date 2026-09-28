@@ -43,10 +43,12 @@ src-tauri/                  la app
   src/pegar.rs              portapapeles, Ctrl+V y restauración
   src/overlay.rs            mostrar/ocultar la pastilla sin activarla
   src/config.rs             config.json y los comandos de la ventana de configuración
+  src/historial.rs          historial de dictados en SQLite y sus comandos
   src/sonidos.rs            tonos de inicio y fin generados en memoria
   tauri.conf.json           ventanas, bundle NSIS
 src/                        interfaz en Svelte 5
-  App.svelte                configuración y últimos dictados
+  App.svelte                configuración e historial
+  Historial.svelte          buscador y lista del historial
   Asistente.svelte          asistente de primer uso
   CapturaAtajo.svelte       captura de un atajo nuevo
   Overlay.svelte            la pastilla con la onda
@@ -64,7 +66,8 @@ scripts/                    dev.ps1, build.ps1, logo.py
 6. **Detectar la voz.** Se remuestrea a 16 kHz y Silero VAD deja solo los tramos con voz. Si no hay ninguno, no se transcribe.
 7. **Transcribir.** whisper.cpp transcribe con el modelo que ya está en memoria. Si el resultado es solo una frase de las que Whisper inventa ("Gracias."), se descarta.
 8. **Pegar.** El hilo `wister-portapapeles` guarda el portapapeles, pone el texto, manda `Ctrl+V` y a los 300 ms restaura lo que había.
-9. **Informar.** El resultado va a la interfaz (evento `resultado`) y el estado vuelve a "En espera".
+9. **Informar.** El resultado va a la interfaz (evento `resultado`) y el estado vuelve a "En espera", lo que oculta el overlay.
+10. **Anotar.** Si el historial está activado, el texto se guarda en SQLite con el título de la ventana que estaba activa al soltar el atajo. Va después de ocultar el overlay, para que la escritura no lo demore.
 
 ## Módulos
 
@@ -137,6 +140,15 @@ Si un dictado va a la misma ventana que el anterior antes de 60 s, se le antepon
 - Tauri crea las ventanas de `tauri.conf.json` **antes** del `setup`, y en release la interfaz embebida carga tan rápido que llama a los comandos antes de que el `setup` registre su estado. Por eso los comandos usan `try_state` para lo que se registra en el `setup`.
 - **Instancia única** (`tauri-plugin-single-instance`): abrir Wister de nuevo muestra la ventana de la instancia que ya corre, en vez de sumar otra que escucharía el atajo y pegaría cada dictado dos veces.
 
+### Historial (`historial.rs`, `Historial.svelte`)
+
+- SQLite embebido (`rusqlite` con `bundled`: no depende de un SQLite instalado) en `%APPDATA%\ar.wister.app\historial.db`. Tabla `dictados`: fecha (ms UTC), texto, duración del audio, palabras y título de la ventana destino.
+- El esquema se versiona con `PRAGMA user_version`: `MIGRACIONES` es una lista y al abrir se aplican las que faltan.
+- La conexión se abre la primera vez que se usa; el estado se registra antes del `setup`, así que los comandos usan `State`.
+- `secure_delete` para que lo borrado no quede en el archivo, y "Borrar todo" hace `VACUUM`. WAL con `synchronous = NORMAL`: cada dictado no espera al disco (un corte de luz puede perder el último, pero no corrompe la base).
+- La búsqueda usa una función SQL propia, `plegar` (minúsculas y sin tildes; la `ñ` se deja), con `instr` en vez de `LIKE` para no tener que escapar `%` y `_`.
+- La interfaz se actualiza con el evento `historial` (`agregado`, `borrado`, `borrado_todo`, `error`) sin volver a pedir la lista.
+
 ### Modelos (`wister-core/src/models.rs`)
 
 - Catálogo embebido con nombre, tamaño y el SHA-1 que publica whisper.cpp en su `models/README.md`.
@@ -168,6 +180,7 @@ La diferencia entre el bench y la app todavía no está explicada. Puede ser que
 
 - Sin telemetría ni reportes automáticos de errores.
 - El audio se procesa en memoria y no se guarda.
+- El historial guarda solo el texto, en la PC, y se puede desactivar o borrar.
 - La red se usa solo para bajar modelos, a pedido.
 
 ## Riesgos y preguntas abiertas

@@ -4,6 +4,7 @@
   import { listen } from "@tauri-apps/api/event";
   import Asistente from "./Asistente.svelte";
   import CapturaAtajo from "./CapturaAtajo.svelte";
+  import Historial from "./Historial.svelte";
   import {
     IDIOMAS,
     nombreAtajo,
@@ -26,6 +27,7 @@
         espera_ms: number;
         microfono_ms: number;
         pegado: Pegado;
+        app: string | null;
       }
     | { tipo: "descartado"; motivo: "otra_tecla" | "toque_corto" | "sin_voz" };
 
@@ -37,7 +39,9 @@
 
   let version = $state("");
   let estado = $state<Estado>({ tipo: "iniciando" });
-  let historial = $state<{ hora: string; resultado: Resultado }[]>([]);
+  // Solo para avisar si el último dictado se descartó o no se pudo pegar.
+  let ultimo = $state<Resultado | null>(null);
+  let confirmarBorrado = $state(false);
   let config = $state<Config | null>(null);
   let modelos = $state<Modelo[]>([]);
   let microfonos = $state<Microfono[]>([]);
@@ -60,10 +64,7 @@
   window.addEventListener("focus", refrescar);
 
   listen<Estado>("estado", ({ payload }) => (estado = payload));
-  listen<Resultado>("resultado", ({ payload }) => {
-    const hora = new Date().toLocaleTimeString("es-AR");
-    historial = [{ hora, resultado: payload }, ...historial].slice(0, 20);
-  });
+  listen<Resultado>("resultado", ({ payload }) => (ultimo = payload));
   listen<Descarga>("descarga", ({ payload }) => {
     const { modelo } = payload;
     if (payload.tipo === "progreso") {
@@ -106,6 +107,16 @@
     }
   }
 
+  async function borrarHistorial() {
+    confirmarBorrado = false;
+    try {
+      await invoke("borrar_historial");
+      errorAjustes = "";
+    } catch (e) {
+      errorAjustes = String(e);
+    }
+  }
+
   function descargar(nombre: string) {
     descargas[nombre] = { porcentaje: 0 };
     invoke("descargar_modelo", { nombre }).catch((e) => {
@@ -137,7 +148,6 @@
     }[estado.tipo],
   );
 
-  const seg = (ms: number) => (ms / 1000).toFixed(1).replace(".", ",") + " s";
 </script>
 
 {#if config && !config.asistente_completo}
@@ -165,6 +175,11 @@
   </div>
   {#if estado.tipo === "error"}
     <p class="error">{estado.mensaje}</p>
+  {/if}
+  {#if ultimo?.tipo === "descartado"}
+    <p class="muted">Último dictado descartado: {DESCARTES[ultimo.motivo]}.</p>
+  {:else if ultimo?.tipo === "texto" && noPegado(ultimo.pegado)}
+    <p class="aviso">{noPegado(ultimo.pegado)}</p>
   {/if}
 
   {#if config}
@@ -261,6 +276,25 @@
         />
         Iniciar Wister con Windows
       </label>
+      <div class="casilla">
+        <label class="casilla">
+          <input
+            type="checkbox"
+            checked={config.guardar_historial}
+            onchange={(e) => cambiar({ guardar_historial: e.currentTarget.checked })}
+          />
+          Guardar el historial de dictados en esta PC
+        </label>
+        <span class="derecha">
+          {#if confirmarBorrado}
+            <span class="muted">¿Borrar todos los dictados?</span>
+            <button class="peligro" onclick={borrarHistorial}>Sí, borrar</button>
+            <button onclick={() => (confirmarBorrado = false)}>Cancelar</button>
+          {:else}
+            <button onclick={() => (confirmarBorrado = true)}>Borrar todo</button>
+          {/if}
+        </span>
+      </div>
 
       {#if errorAjustes}<p class="error">{errorAjustes}</p>{/if}
     </section>
@@ -269,28 +303,8 @@
   {/if}
 
   <section>
-    <h2>Últimos dictados</h2>
-    <ul class="historial">
-      {#each historial as { hora, resultado }}
-        <li>
-          <span class="muted">{hora}</span>
-          {#if resultado.tipo === "texto"}
-            <p class="texto">{resultado.texto}</p>
-            <span class="muted">
-              {seg(resultado.audio_ms)} de audio · texto en {resultado.espera_ms} ms · micrófono abierto
-              en {resultado.microfono_ms} ms
-            </span>
-            {#if noPegado(resultado.pegado)}
-              <p class="aviso">{noPegado(resultado.pegado)}</p>
-            {/if}
-          {:else}
-            <span class="descartado">Descartado: {DESCARTES[resultado.motivo]}</span>
-          {/if}
-        </li>
-      {:else}
-        <li class="muted">Todavía no dictaste nada.</li>
-      {/each}
-    </ul>
+    <h2>Historial</h2>
+    <Historial guardando={config?.guardar_historial ?? true} />
   </section>
 
   <p class="muted pie">
@@ -453,20 +467,21 @@
     margin-top: 10px;
     font-size: 13px;
   }
-  .historial li {
-    padding: 8px 0;
-    border-bottom: 1px solid var(--borde);
-  }
-  .texto {
-    margin: 2px 0;
-    font-size: 15px;
-  }
   .aviso {
     margin: 4px 0 0;
+    font-size: 13px;
     color: #d97706;
   }
-  .descartado {
-    opacity: 0.75;
+  .casilla .casilla {
+    margin-top: 0;
+  }
+  .casilla button {
+    padding: 2px 8px;
+    font-size: 12px;
+  }
+  .peligro {
+    border-color: #dc2626;
+    color: #dc2626;
   }
   .muted {
     opacity: 0.6;

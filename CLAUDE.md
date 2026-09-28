@@ -42,7 +42,7 @@ Principios que no se negocian:
 
 Pendiente, en orden aproximado de prioridad:
 
-1. Historial persistente (SQLite) y rediseño de la ventana: barra lateral con secciones, panel más grande y estadísticas de uso.
+1. Rediseño de la ventana: barra lateral con secciones, panel más grande y estadísticas de uso (el historial en SQLite ya está).
 2. Diccionario personal (vía `initial_prompt`) y reemplazos de texto.
 3. Publicar versiones en GitHub Releases, con el instalador firmado (por ejemplo, SignPath).
 4. Actualización con un botón (`tauri-plugin-updater`), que busque versiones nuevas solo cuando el usuario lo pida.
@@ -56,8 +56,8 @@ Pendiente, en orden aproximado de prioridad:
 Cargo.toml                 workspace (versión, licencia y perfiles compartidos)
 crates/wister-core/        lib: audio.rs, models.rs, stt.rs, vad.rs (sin Tauri; el modelo de VAD está en assets/)
 crates/wister-cli/         bin `wister`: CLI para probar y medir
-src-tauri/                 app Tauri (bin `wister-app`): hotkey, dictado, pegar, overlay, config, sonidos
-src/                       UI en Svelte 5 (App, Asistente, CapturaAtajo, Overlay, tipos.ts)
+src-tauri/                 app Tauri (bin `wister-app`): hotkey, dictado, pegar, overlay, config, historial, sonidos
+src/                       UI en Svelte 5 (App, Asistente, CapturaAtajo, Historial, Overlay, tipos.ts)
 scripts/                   dev.ps1, build.ps1, logo.py
 docs/arquitectura.md       diseño, módulos y decisiones
 docs/fase-0.md             compilación, CLI y mediciones de modelos
@@ -101,8 +101,9 @@ Trampas que ya costaron tiempo:
 - **whisper-rs 0.16**: `WhisperState` guarda un `Arc` al contexto, así que alcanza con guardar el estado; crearlo es caro y se reutiliza. Con menos de 1 s de audio Whisper inventa: `Engine::transcribe` completa con silencio. La primera transcripción con Vulkan compila shaders (~7 s): se "calienta" al cargar el modelo.
 - **rubato 5**: `Fft::new(in, out, 1024, 1, FixedSync::Input)` + `process_all` + `take_data()` devuelve exactamente la longitud esperada.
 - **cpal 0.18**: el nombre del dispositivo sale de `device.to_string()`; la selección es por subcadena, sin distinguir mayúsculas.
+- **rusqlite**: no implementa `ToSql`/`FromSql` para `u64` ni `usize` (sin features extra): se usan `u32`/`i64`. Guardar en el historial va después de ocultar el overlay, y la base va en WAL con `synchronous = NORMAL` para que cada `INSERT` no espere al disco.
 - **reqwest blocking**: tiene 30 s de timeout por defecto; para descargar modelos se desactiva con `.timeout(None)`.
-- Rutas: modelos en `%LOCALAPPDATA%\Wister\data\models` (o `WISTER_MODELS_DIR`), configuración en `%APPDATA%\ar.wister.app\config.json`. Los comparten la app instalada, la de desarrollo y la CLI.
+- Rutas: modelos en `%LOCALAPPDATA%\Wister\data\models` (o `WISTER_MODELS_DIR`), configuración en `%APPDATA%\ar.wister.app\config.json` e historial en `historial.db`, en la misma carpeta. Los comparten la app instalada, la de desarrollo y la CLI.
 
 ## Riesgos conocidos
 

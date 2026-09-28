@@ -16,6 +16,7 @@ export type Config = {
   mostrar_overlay: boolean;
   sonidos: boolean;
   atajo: number[];
+  guardar_historial: boolean;
 };
 
 export type Modelo = {
@@ -25,6 +26,24 @@ export type Modelo = {
   descargado: boolean;
   recomendado: boolean;
 };
+
+/** Un dictado guardado en el historial (`historial::Dictado`). */
+export type Dictado = {
+  id: number;
+  /** Milisegundos desde 1970. */
+  fecha: number;
+  texto: string;
+  audio_ms: number;
+  palabras: number;
+  /** Título de la ventana donde se pegó. */
+  app: string | null;
+};
+
+export type CambioHistorial =
+  | { tipo: "agregado"; dictado: Dictado }
+  | { tipo: "borrado"; id: number }
+  | { tipo: "borrado_todo" }
+  | { tipo: "error"; mensaje: string };
 
 export type Microfono = { nombre: string; predeterminado: boolean };
 
