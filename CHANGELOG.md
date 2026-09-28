@@ -12,10 +12,17 @@ Los cambios de cada versión. El formato sigue [Keep a Changelog](https://keepac
 - Historial de dictados guardado en la PC (SQLite, en `%APPDATA%\ar.wister.app\historial.db`): texto, fecha, duración del audio, cantidad de palabras y título de la ventana donde se pegó. Reemplaza a la lista de "Últimos dictados", que se perdía al cerrar la app.
 - Sección Historial con buscador (sin distinguir mayúsculas ni tildes, también por la app), agrupada por día, con botones para copiar y borrar cada dictado.
 - Configuración: casilla "Guardar el historial de dictados en esta PC" (activada por defecto) y botón "Borrar todo". Lo borrado se sobrescribe en el archivo.
+- Sección Inicio con estadísticas de uso: palabras de hoy, de los últimos 7 días y en total, tiempo ahorrado contra tipear a 40 palabras por minuto, días seguidos dictando y velocidad; y los últimos cinco dictados.
+- Sección Diccionario (por ahora, un lugar reservado para el diccionario personal).
+- Doble clic en el ícono de la bandeja para abrir la ventana.
+- Botón "Salir de Wister" en la barra lateral, con confirmación.
 
 ### Cambiado
 
+- Ventana nueva, más grande (960×640), con barra lateral: Inicio, Historial, Diccionario y Configuración, y el estado del dictado abajo.
+- La configuración se ordena en bloques: modelo de voz, dictado e historial.
 - La ventana ya no muestra los tiempos de cada dictado; solo avisa si el último se descartó o no se pudo pegar.
+- El menú de la bandeja se abre con el clic derecho, y "Configuración" pasó a llamarse "Abrir Wister".
 
 ## [0.1.0] - 2026-09-27
 

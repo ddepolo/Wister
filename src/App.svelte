@@ -1,140 +1,47 @@
 <script lang="ts">
-  import { getVersion } from "@tauri-apps/api/app";
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
+  // Como archivo aparte: si Vite lo embebiera como `data:`, la CSP no lo dejaría cargar.
+  import logo from "../src-tauri/icons/icon.svg?no-inline";
   import Asistente from "./Asistente.svelte";
-  import CapturaAtajo from "./CapturaAtajo.svelte";
+  import Configuracion from "./Configuracion.svelte";
+  import Diccionario from "./Diccionario.svelte";
   import Historial from "./Historial.svelte";
-  import {
-    IDIOMAS,
-    nombreAtajo,
-    type Config,
-    type Descarga,
-    type Estado,
-    type Microfono,
-    type Modelo,
-  } from "./tipos";
+  import Icono from "./Icono.svelte";
+  import Inicio from "./Inicio.svelte";
+  import type { Config, Estado, Resultado } from "./tipos";
 
-  type Pegado =
-    | { tipo: "hecho" | "ventana_elevada" | "teclas_apretadas" }
-    | { tipo: "error"; mensaje: string };
+  type Seccion = "inicio" | "historial" | "diccionario" | "configuracion";
 
-  type Resultado =
-    | {
-        tipo: "texto";
-        texto: string;
-        audio_ms: number;
-        espera_ms: number;
-        microfono_ms: number;
-        pegado: Pegado;
-        app: string | null;
-      }
-    | { tipo: "descartado"; motivo: "otra_tecla" | "toque_corto" | "sin_voz" };
+  const SECCIONES: [Seccion, string][] = [
+    ["inicio", "Inicio"],
+    ["historial", "Historial"],
+    ["diccionario", "Diccionario"],
+    ["configuracion", "Configuración"],
+  ];
 
-  const DESCARTES = {
-    otra_tecla: "se tocó otra tecla",
-    toque_corto: "toque muy corto",
-    sin_voz: "no se detectó voz",
-  };
-
-  let version = $state("");
+  let seccion = $state<Seccion>("inicio");
   let estado = $state<Estado>({ tipo: "iniciando" });
   // Solo para avisar si el último dictado se descartó o no se pudo pegar.
   let ultimo = $state<Resultado | null>(null);
-  let confirmarBorrado = $state(false);
   let config = $state<Config | null>(null);
-  let modelos = $state<Modelo[]>([]);
-  let microfonos = $state<Microfono[]>([]);
-  let descargas = $state<Record<string, { porcentaje: number | null; error?: string }>>({});
-  let errorAjustes = $state("");
-  let autoarranque = $state(false);
+  let errorConfig = $state("");
+  let confirmarSalida = $state(false);
 
-  const recomendado = $derived(modelos.find((m) => m.recomendado)?.nombre ?? "");
-  const modeloElegido = $derived(config?.modelo ?? recomendado);
-  const microfonoPredeterminado = $derived(microfonos.find((m) => m.predeterminado)?.nombre);
-
-  getVersion().then((v) => (version = v));
   invoke<Estado>("estado_actual").then((e) => (estado = e));
   invoke<Config>("obtener_config")
     .then((c) => (config = c))
-    .catch((e) => (errorAjustes = `No se pudo leer la configuración: ${e}`));
-  invoke<boolean>("autoarranque").then((a) => (autoarranque = a));
-  refrescar();
-  // Al volver a la ventana se releen los micrófonos: puede que se haya enchufado uno.
-  window.addEventListener("focus", refrescar);
+    .catch((e) => (errorConfig = `No se pudo leer la configuración: ${e}`));
 
   listen<Estado>("estado", ({ payload }) => (estado = payload));
   listen<Resultado>("resultado", ({ payload }) => (ultimo = payload));
-  listen<Descarga>("descarga", ({ payload }) => {
-    const { modelo } = payload;
-    if (payload.tipo === "progreso") {
-      const porcentaje = payload.total ? (payload.bajado / payload.total) * 100 : null;
-      descargas[modelo] = { porcentaje };
-    } else if (payload.tipo === "lista") {
-      delete descargas[modelo];
-      refrescar();
-    } else {
-      descargas[modelo] = { porcentaje: null, error: payload.mensaje };
-    }
-  });
 
-  function refrescar() {
-    invoke<Modelo[]>("listar_modelos").then((m) => (modelos = m));
-    invoke<Microfono[]>("listar_microfonos")
-      .then((m) => (microfonos = m))
-      .catch((e) => (errorAjustes = String(e)));
-  }
-
+  /** Guarda la configuración; si falla, tira el error para que lo muestre quien llamó. */
   async function cambiar(cambios: Partial<Config>) {
     if (!config) return;
     const nueva = { ...config, ...cambios };
-    try {
-      await invoke("guardar_config", { config: nueva });
-      config = nueva;
-      errorAjustes = "";
-    } catch (e) {
-      errorAjustes = String(e);
-    }
-  }
-
-  async function cambiarAutoarranque(activo: boolean) {
-    try {
-      await invoke("cambiar_autoarranque", { activo });
-      autoarranque = activo;
-      errorAjustes = "";
-    } catch (e) {
-      errorAjustes = String(e);
-    }
-  }
-
-  async function borrarHistorial() {
-    confirmarBorrado = false;
-    try {
-      await invoke("borrar_historial");
-      errorAjustes = "";
-    } catch (e) {
-      errorAjustes = String(e);
-    }
-  }
-
-  function descargar(nombre: string) {
-    descargas[nombre] = { porcentaje: 0 };
-    invoke("descargar_modelo", { nombre }).catch((e) => {
-      descargas[nombre] = { porcentaje: null, error: String(e) };
-    });
-  }
-
-  function noPegado(p: Pegado): string | null {
-    switch (p.tipo) {
-      case "hecho":
-        return null;
-      case "ventana_elevada":
-        return "No se pudo pegar: la ventana corre como administrador. Quedó en el portapapeles.";
-      case "teclas_apretadas":
-        return "No se pegó porque seguían apretadas teclas modificadoras. Quedó en el portapapeles.";
-      case "error":
-        return `No se pudo pegar (${p.mensaje}).`;
-    }
+    await invoke("guardar_config", { config: nueva });
+    config = nueva;
   }
 
   const etiqueta = $derived(
@@ -142,12 +49,11 @@
       iniciando: "Iniciando…",
       cargando_modelo: "Cargando modelo…",
       listo: "En espera",
-      grabando: "● Grabando",
+      grabando: "Grabando",
       transcribiendo: "Transcribiendo…",
       error: "Error",
     }[estado.tipo],
   );
-
 </script>
 
 {#if config && !config.asistente_completo}
@@ -155,347 +61,186 @@
     {config}
     onterminar={(c) => {
       config = c;
-      refrescar();
+      seccion = "inicio";
     }}
   />
-{:else}
-<main>
-  <h1>Wister</h1>
-  <p>
-    Mantené apretado <kbd>{config ? nombreAtajo(config.atajo) : "…"}</kbd>, hablá y soltá.
-  </p>
-
-  <div class="barra">
-    <span class="estado {estado.tipo}">{etiqueta}</span>
-    {#if estado.tipo === "listo"}
-      <span class="muted">{estado.modelo} · {estado.gpu ? "GPU" : "CPU"}</span>
-    {:else if estado.tipo === "cargando_modelo"}
-      <span class="muted">{estado.modelo}</span>
-    {/if}
-  </div>
-  {#if estado.tipo === "error"}
-    <p class="error">{estado.mensaje}</p>
-  {/if}
-  {#if ultimo?.tipo === "descartado"}
-    <p class="muted">Último dictado descartado: {DESCARTES[ultimo.motivo]}.</p>
-  {:else if ultimo?.tipo === "texto" && noPegado(ultimo.pegado)}
-    <p class="aviso">{noPegado(ultimo.pegado)}</p>
-  {/if}
-
-  {#if config}
-    <section>
-      <h2>Modelo</h2>
-      <ul class="modelos">
-        {#each modelos as m}
-          {@const descarga = descargas[m.nombre]}
-          <li class:elegido={m.nombre === modeloElegido}>
-            <label>
-              <input
-                type="radio"
-                name="modelo"
-                value={m.nombre}
-                checked={m.nombre === modeloElegido}
-                disabled={!m.descargado}
-                onchange={() => cambiar({ modelo: m.nombre })}
-              />
-              <span class="nombre">{m.nombre}</span>
-              {#if m.recomendado}<span class="insignia">Recomendado</span>{/if}
-              <span class="muted derecha">{m.mb} MB</span>
-            </label>
-            <div class="nota muted">{m.nota}</div>
-            {#if descarga && !descarga.error}
-              <div class="progreso">
-                <div style="width: {descarga.porcentaje ?? 0}%"></div>
-              </div>
-            {:else if !m.descargado}
-              <button onclick={() => descargar(m.nombre)}>Descargar</button>
-              {#if descarga?.error}<span class="error">{descarga.error}</span>{/if}
-            {/if}
-          </li>
-        {/each}
-      </ul>
-
-      <div class="fila">
-        <label for="microfono">Micrófono</label>
-        <select
-          id="microfono"
-          value={config.microfono ?? ""}
-          onchange={(e) => cambiar({ microfono: e.currentTarget.value || null })}
-        >
-          <option value="">
-            Predeterminado de Windows{microfonoPredeterminado ? ` (${microfonoPredeterminado})` : ""}
-          </option>
-          {#each microfonos as m}
-            <option value={m.nombre}>{m.nombre}</option>
-          {/each}
-          {#if config.microfono && !microfonos.some((m) => m.nombre === config?.microfono)}
-            <option value={config.microfono}>{config.microfono} (no conectado)</option>
-          {/if}
-        </select>
+{:else if config}
+  <div class="app">
+    <nav>
+      <div class="marca">
+        <img src={logo} alt="" width="28" height="28" />
+        <span>Wister</span>
       </div>
+      {#each SECCIONES as [id, nombre]}
+        <button class="item" class:activo={seccion === id} onclick={() => (seccion = id)}>
+          <Icono nombre={id} />
+          {nombre}
+        </button>
+      {/each}
 
-      <div class="fila">
-        <label for="idioma">Idioma</label>
-        <select
-          id="idioma"
-          value={config.idioma}
-          onchange={(e) => cambiar({ idioma: e.currentTarget.value })}
-        >
-          {#each IDIOMAS as [codigo, nombre]}
-            <option value={codigo}>{nombre}</option>
-          {/each}
-        </select>
-      </div>
-
-      <div class="fila">
-        <span class="etiqueta">Atajo</span>
-        <CapturaAtajo atajo={config.atajo} oncambiar={(atajo) => cambiar({ atajo })} />
-      </div>
-
-      <label class="casilla">
-        <input
-          type="checkbox"
-          checked={config.mostrar_overlay}
-          onchange={(e) => cambiar({ mostrar_overlay: e.currentTarget.checked })}
-        />
-        Mostrar la onda mientras grabo
-      </label>
-      <label class="casilla">
-        <input
-          type="checkbox"
-          checked={config.sonidos}
-          onchange={(e) => cambiar({ sonidos: e.currentTarget.checked })}
-        />
-        Sonido al empezar y al terminar de grabar
-      </label>
-      <label class="casilla">
-        <input
-          type="checkbox"
-          checked={autoarranque}
-          onchange={(e) => cambiarAutoarranque(e.currentTarget.checked)}
-        />
-        Iniciar Wister con Windows
-      </label>
-      <div class="casilla">
-        <label class="casilla">
-          <input
-            type="checkbox"
-            checked={config.guardar_historial}
-            onchange={(e) => cambiar({ guardar_historial: e.currentTarget.checked })}
-          />
-          Guardar el historial de dictados en esta PC
-        </label>
-        <span class="derecha">
-          {#if confirmarBorrado}
-            <span class="muted">¿Borrar todos los dictados?</span>
-            <button class="peligro" onclick={borrarHistorial}>Sí, borrar</button>
-            <button onclick={() => (confirmarBorrado = false)}>Cancelar</button>
-          {:else}
-            <button onclick={() => (confirmarBorrado = true)}>Borrar todo</button>
+      <div class="estado {estado.tipo}" title={estado.tipo === "error" ? estado.mensaje : ""}>
+        <span class="punto"></span>
+        <span>
+          {etiqueta}
+          {#if estado.tipo === "listo"}
+            <span class="muted">{estado.modelo} · {estado.gpu ? "GPU" : "CPU"}</span>
+          {:else if estado.tipo === "cargando_modelo"}
+            <span class="muted">{estado.modelo}</span>
           {/if}
         </span>
       </div>
+      {#if confirmarSalida}
+        <div class="confirmar">
+          <p>¿Cerrar Wister? El atajo deja de funcionar hasta que lo vuelvas a abrir.</p>
+          <div class="botones">
+            <button class="peligro" onclick={() => invoke("salir")}>Salir</button>
+            <button onclick={() => (confirmarSalida = false)}>Cancelar</button>
+          </div>
+        </div>
+      {:else}
+        <button class="item" onclick={() => (confirmarSalida = true)}>
+          <Icono nombre="salir" />
+          Salir de Wister
+        </button>
+      {/if}
+    </nav>
 
-      {#if errorAjustes}<p class="error">{errorAjustes}</p>{/if}
-    </section>
-  {:else if errorAjustes}
-    <p class="error">{errorAjustes}</p>
-  {/if}
-
-  <section>
-    <h2>Historial</h2>
-    <Historial guardando={config?.guardar_historial ?? true} />
-  </section>
-
-  <p class="muted pie">
-    Versión {version} ·
-    <button class="enlace" onclick={() => cambiar({ asistente_completo: false })}>
-      Volver a ejecutar el asistente
-    </button>
-  </p>
-</main>
+    <!-- Las secciones quedan montadas: así no se pierden la búsqueda ni las descargas en curso. -->
+    <main>
+      <div class="seccion" hidden={seccion !== "inicio"}>
+        <Inicio {config} {estado} {ultimo} onvertodo={() => (seccion = "historial")} />
+      </div>
+      <div class="seccion" hidden={seccion !== "historial"}>
+        <h1>Historial</h1>
+        <Historial guardando={config.guardar_historial} />
+      </div>
+      <div class="seccion" hidden={seccion !== "diccionario"}>
+        <Diccionario />
+      </div>
+      <div class="seccion" hidden={seccion !== "configuracion"}>
+        <Configuracion {config} {cambiar} />
+      </div>
+    </main>
+  </div>
+{:else if errorConfig}
+  <p class="error">{errorConfig}</p>
 {/if}
 
 <style>
-  :global(body) {
-    margin: 0;
-    font-family: "Segoe UI", system-ui, sans-serif;
-    background: #f7f7f8;
-    color: #1d1d1f;
-    --borde: rgba(127, 127, 127, 0.25);
-    --acento: #4f46e5;
+  .app {
+    display: grid;
+    grid-template-columns: 200px 1fr;
+    height: 100vh;
   }
-  @media (prefers-color-scheme: dark) {
-    :global(body) {
-      background: #1e1e20;
-      color: #ececf1;
-      --acento: #818cf8;
-    }
+  nav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding: 16px 10px;
+    background: var(--lateral);
+    border-right: 1px solid var(--borde);
   }
-  main {
-    padding: 20px 24px;
-  }
-  h1 {
-    margin: 0 0 8px;
-    font-size: 22px;
-  }
-  h2 {
-    margin: 0 0 8px;
-    font-size: 14px;
-    font-weight: 600;
-  }
-  section {
-    margin-top: 18px;
-  }
-  kbd {
-    padding: 1px 6px;
-    border: 1px solid currentColor;
-    border-radius: 4px;
-    font-size: 12px;
-    opacity: 0.8;
-  }
-  .barra {
+  .marca {
     display: flex;
     align-items: center;
     gap: 10px;
-    margin: 4px 0 4px;
+    padding: 0 8px 18px;
+    font-size: 17px;
+    font-weight: 600;
+  }
+  .marca img {
+    border-radius: 7px;
+  }
+  .item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    padding: 8px 10px;
+    border: none;
+    border-radius: 8px;
+    background: none;
+    font-size: 14px;
+    text-align: left;
+    opacity: 0.75;
+  }
+  .item:hover {
+    background: var(--suave);
+    opacity: 1;
+  }
+  .item.activo {
+    background: var(--suave);
+    color: var(--acento);
+    font-weight: 600;
+    opacity: 1;
   }
   .estado {
-    padding: 4px 10px;
-    border-radius: 999px;
-    font-size: 13px;
-    background: rgba(127, 127, 127, 0.15);
-  }
-  .estado.grabando {
-    background: #dc2626;
-    color: #fff;
-  }
-  .estado.transcribiendo {
-    background: #4f46e5;
-    color: #fff;
-  }
-  .estado.error,
-  .error {
-    color: #dc2626;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+    margin-top: auto;
+    padding: 10px;
     font-size: 13px;
   }
-  ul {
-    margin: 0;
-    padding: 0;
-    list-style: none;
-    font-size: 13px;
+  .estado .muted {
+    display: block;
+    margin-top: 2px;
   }
-  .modelos li {
-    padding: 8px 10px;
+  .punto {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    margin-top: 5px;
+    border-radius: 50%;
+    background: var(--borde);
+  }
+  .listo .punto {
+    background: var(--verde);
+  }
+  .grabando .punto {
+    background: var(--rojo);
+  }
+  .transcribiendo .punto,
+  .cargando_modelo .punto {
+    background: var(--acento);
+  }
+  .estado.error {
+    color: var(--rojo);
+  }
+  .error .punto {
+    background: var(--rojo);
+  }
+  .confirmar {
+    padding: 10px;
     border: 1px solid var(--borde);
     border-radius: 8px;
-    margin-bottom: 6px;
-  }
-  .modelos li.elegido {
-    border-color: var(--acento);
-  }
-  .modelos label {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .nombre {
-    font-weight: 600;
-  }
-  .insignia {
-    padding: 1px 7px;
-    border-radius: 999px;
-    font-size: 11px;
-    background: var(--acento);
-    color: #fff;
-  }
-  .derecha {
-    margin-left: auto;
-  }
-  .nota {
-    margin: 2px 0 0 24px;
-  }
-  .modelos button {
-    margin: 6px 0 0 24px;
-  }
-  button,
-  select {
-    font: inherit;
-    font-size: 13px;
-    color: inherit;
-    background: rgba(127, 127, 127, 0.12);
-    border: 1px solid var(--borde);
-    border-radius: 6px;
-    padding: 4px 10px;
-    cursor: pointer;
-  }
-  select option {
-    color: #1d1d1f;
-  }
-  .progreso {
-    margin: 8px 0 2px 24px;
-    height: 6px;
-    border-radius: 3px;
-    background: rgba(127, 127, 127, 0.2);
-    overflow: hidden;
-  }
-  .progreso div {
-    height: 100%;
-    background: var(--acento);
-    transition: width 150ms linear;
-  }
-  .fila {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-top: 10px;
-    font-size: 13px;
-  }
-  .fila label,
-  .fila .etiqueta {
-    width: 80px;
-    flex: none;
-  }
-  .fila select {
-    flex: 1;
-    min-width: 0;
-  }
-  .casilla {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin-top: 10px;
-    font-size: 13px;
-  }
-  .aviso {
-    margin: 4px 0 0;
-    font-size: 13px;
-    color: #d97706;
-  }
-  .casilla .casilla {
-    margin-top: 0;
-  }
-  .casilla button {
-    padding: 2px 8px;
+    background: var(--superficie);
     font-size: 12px;
+  }
+  .confirmar p {
+    margin: 0 0 8px;
+    line-height: 1.4;
+  }
+  .botones {
+    display: flex;
+    gap: 6px;
+  }
+  .botones button {
+    flex: 1;
   }
   .peligro {
-    border-color: #dc2626;
-    color: #dc2626;
+    border-color: var(--rojo);
+    color: var(--rojo);
   }
-  .muted {
-    opacity: 0.6;
-    font-size: 12px;
+  main {
+    overflow-y: auto;
+    padding: 28px 36px;
   }
-  .pie {
-    margin-top: 12px;
+  .seccion {
+    max-width: 760px;
+    margin: 0 auto;
   }
-  .enlace {
-    padding: 0;
-    border: none;
-    background: none;
-    font-size: 12px;
-    color: var(--acento);
-    text-decoration: underline;
+  .seccion[hidden] {
+    display: none;
   }
 </style>

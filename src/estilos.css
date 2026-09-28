@@ -1,0 +1,118 @@
+/* Estilos compartidos de la ventana principal (el overlay tiene los suyos). */
+
+:root {
+  color-scheme: light dark;
+  --fondo: #f7f7f8;
+  --lateral: #eeeef1;
+  --superficie: #ffffff;
+  --texto: #1d1d1f;
+  --borde: rgba(127, 127, 127, 0.25);
+  --suave: rgba(127, 127, 127, 0.12);
+  --acento: #4f46e5;
+  --rojo: #dc2626;
+  --naranja: #d97706;
+  --verde: #16a34a;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fondo: #1e1e20;
+    --lateral: #17171a;
+    --superficie: #27272b;
+    --texto: #ececf1;
+    --acento: #818cf8;
+    --verde: #4ade80;
+  }
+}
+
+body {
+  margin: 0;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  background: var(--fondo);
+  color: var(--texto);
+}
+
+h1 {
+  margin: 0 0 6px;
+  font-size: 22px;
+  font-weight: 600;
+}
+
+h2 {
+  margin: 0 0 10px;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+button,
+select,
+input[type="search"] {
+  font: inherit;
+  font-size: 13px;
+  color: inherit;
+  background: var(--suave);
+  border: 1px solid var(--borde);
+  border-radius: 6px;
+  padding: 4px 10px;
+}
+
+button,
+select {
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+select option {
+  color: #1d1d1f;
+}
+
+input[type="search"]:focus,
+select:focus-visible,
+button:focus-visible {
+  outline: none;
+  border-color: var(--acento);
+}
+
+kbd {
+  padding: 1px 6px;
+  border: 1px solid currentColor;
+  border-radius: 4px;
+  font-family: inherit;
+  font-size: 12px;
+  opacity: 0.8;
+}
+
+.muted {
+  opacity: 0.6;
+  font-size: 12px;
+}
+
+.error {
+  color: var(--rojo);
+  font-size: 13px;
+}
+
+.aviso {
+  color: var(--naranja);
+  font-size: 13px;
+}
+
+.enlace {
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 12px;
+  color: var(--acento);
+  text-decoration: underline;
+}
+
+.tarjeta {
+  background: var(--superficie);
+  border: 1px solid var(--borde);
+  border-radius: 10px;
+  padding: 16px 18px;
+}

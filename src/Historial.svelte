@@ -4,9 +4,10 @@
   import { onMount } from "svelte";
   import type { CambioHistorial, Dictado } from "./tipos";
 
-  let { guardando }: { guardando: boolean } = $props();
+  // `resumen`: los últimos dictados para Inicio, sin buscador ni paginado.
+  let { guardando, resumen = false }: { guardando: boolean; resumen?: boolean } = $props();
 
-  const PAGINA = 50;
+  const PAGINA = $derived(resumen ? 5 : 50);
 
   let dictados = $state<Dictado[]>([]);
   let busqueda = $state("");
@@ -28,7 +29,7 @@
       });
       if (numero !== consulta) return;
       dictados = mas ? [...dictados, ...nuevos] : nuevos;
-      hayMas = nuevos.length === PAGINA;
+      hayMas = !resumen && nuevos.length === PAGINA;
       cargado = true;
       error = "";
     } catch (e) {
@@ -48,11 +49,14 @@
         case "agregado":
           // Con una búsqueda activa no se sabe si el nuevo coincide: se vuelve a pedir.
           if (busqueda.trim()) cargar();
+          else if (resumen) dictados = [payload.dictado, ...dictados].slice(0, PAGINA);
           else dictados = [payload.dictado, ...dictados];
           error = "";
           break;
         case "borrado":
-          dictados = dictados.filter((d) => d.id !== payload.id);
+          // En el resumen se vuelve a pedir, para que siga mostrando los últimos cinco.
+          if (resumen) cargar();
+          else dictados = dictados.filter((d) => d.id !== payload.id);
           break;
         case "borrado_todo":
           dictados = [];
@@ -109,15 +113,17 @@
   const seg = (ms: number) => (ms / 1000).toFixed(1).replace(".", ",") + " s";
 </script>
 
-<input
-  class="buscador"
-  type="search"
-  placeholder="Buscar en el historial"
-  bind:value={busqueda}
-  oninput={buscar}
-/>
+{#if !resumen}
+  <input
+    class="buscador"
+    type="search"
+    placeholder="Buscar en el historial"
+    bind:value={busqueda}
+    oninput={buscar}
+  />
+{/if}
 
-{#if !guardando}
+{#if !guardando && !resumen}
   <p class="muted">
     El historial está desactivado: los dictados nuevos no se guardan. Podés activarlo en
     Configuración.
@@ -164,39 +170,11 @@
     list-style: none;
     font-size: 13px;
   }
-  button {
-    font: inherit;
-    font-size: 13px;
-    color: inherit;
-    background: rgba(127, 127, 127, 0.12);
-    border: 1px solid var(--borde);
-    border-radius: 6px;
-    padding: 4px 10px;
-    cursor: pointer;
-  }
-  .muted {
-    opacity: 0.6;
-    font-size: 12px;
-  }
-  .error {
-    color: #dc2626;
-    font-size: 13px;
-  }
   .buscador {
     box-sizing: border-box;
     width: 100%;
-    font: inherit;
-    font-size: 13px;
-    color: inherit;
-    background: rgba(127, 127, 127, 0.08);
-    border: 1px solid var(--borde);
-    border-radius: 6px;
-    padding: 6px 10px;
-    margin-bottom: 8px;
-  }
-  .buscador:focus {
-    outline: none;
-    border-color: var(--acento);
+    padding: 7px 12px;
+    margin-bottom: 4px;
   }
   .dia {
     padding: 12px 0 4px;
@@ -204,12 +182,18 @@
     font-weight: 600;
     opacity: 0.7;
   }
+  .dia:first-child {
+    padding-top: 4px;
+  }
   .dia::first-letter {
     text-transform: uppercase;
   }
   .dictado {
     padding: 8px 0;
     border-bottom: 1px solid var(--borde);
+  }
+  .dictado:last-child {
+    border-bottom: none;
   }
   .texto {
     margin: 0 0 4px;

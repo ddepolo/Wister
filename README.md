@@ -19,6 +19,7 @@ La transcripción la hace [Whisper](https://github.com/openai/whisper) (vía [wh
 - **Funciona con o sin GPU**: aprovecha la placa de video con Vulkan (NVIDIA, AMD o Intel), y si no hay, usa el procesador.
 - **Onda en pantalla** mientras grabás, en una pastilla chiquita que nunca le saca el foco a la app donde estás escribiendo.
 - **Asistente de primer uso**: idioma, descarga del modelo, prueba del micrófono y un primer dictado de prueba.
+- **Estadísticas de uso**: palabras dictadas hoy, en la semana y en total, tiempo ahorrado contra tipear, días seguidos y velocidad.
 - **Historial en tu PC**: cada dictado queda guardado con la fecha y la app donde lo pegaste, con buscador y botones para copiarlo o borrarlo. Se puede desactivar y borrar todo.
 - **Configurable**: modelo, micrófono, idioma, atajo, sonidos al grabar y arranque con Windows.
 - **No inventa texto**: un detector de voz (Silero VAD) deja pasar solo lo que dijiste y recorta los silencios. Si solo hubo ruido, no transcribe nada (Whisper suele "escuchar" un "Gracias." en grabaciones vacías).
@@ -44,7 +45,7 @@ Como el instalador todavía no está firmado, Windows SmartScreen va a avisar qu
 
 Si mientras tenés el atajo apretado tocás otra tecla, se cancela: así los atajos comunes como `Ctrl+Shift+T` siguen funcionando. Un toque de menos de 300 ms también se ignora.
 
-Desde el ícono de la bandeja se abre la **configuración**: modelo, micrófono, idioma, atajo, onda en pantalla, sonidos, arranque con Windows y los últimos dictados.
+Con doble clic en el ícono de la bandeja (o clic derecho → "Abrir Wister") se abre la ventana: en **Inicio** están tus estadísticas (palabras dictadas, tiempo ahorrado, días seguidos) y los últimos dictados; en **Historial**, todo lo que dictaste, con buscador; y en **Configuración**, el modelo, el micrófono, el idioma, el atajo, la onda en pantalla, los sonidos y el arranque con Windows.
 
 ## Modelos
 
@@ -104,7 +105,7 @@ El diseño, las decisiones y sus porqués están en [`docs/arquitectura.md`](doc
 crates/wister-core/   captura de audio, modelos y transcripción (biblioteca)
 crates/wister-cli/    CLI para probar y medir: wister dictate, wister bench...
 src-tauri/            la app: bandeja, atajo, dictado, pegado, overlay, configuración
-src/                  la interfaz (configuración, asistente, overlay)
+src/                  la interfaz (inicio, historial, configuración, asistente, overlay)
 scripts/              dev.ps1, build.ps1 y el generador del ícono
 docs/                 arquitectura y mediciones
 ```
@@ -112,7 +113,6 @@ docs/                 arquitectura y mediciones
 ## Roadmap
 
 **Próximo**
-- Una ventana nueva con barra lateral y estadísticas de uso (palabras dictadas, tiempo ahorrado).
 - Diccionario personal (nombres propios, marcas, jerga) y reemplazos de texto ("punto y aparte" → salto de línea).
 - Versiones publicadas para descargar, con instalador firmado.
 

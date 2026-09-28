@@ -20,8 +20,8 @@ Wister es una app [Tauri 2](https://tauri.app): un proceso en Rust con dos venta
  └────────────────────────────────────────┬───────────────────────────────────────────────────┘
                                           │ IPC de Tauri
                  ┌────────────────────────┴─────────────────────────┐
-                 │ ventana "config": configuración, asistente,      │
-                 │   últimos dictados                               │
+                 │ ventana "config": inicio, historial, diccionario,│
+                 │   configuración y asistente                      │
                  │ ventana "overlay": pastilla con la onda, sin foco│
                  └──────────────────────────────────────────────────┘
 ```
@@ -47,8 +47,13 @@ src-tauri/                  la app
   src/sonidos.rs            tonos de inicio y fin generados en memoria
   tauri.conf.json           ventanas, bundle NSIS
 src/                        interfaz en Svelte 5
-  App.svelte                configuración e historial
-  Historial.svelte          buscador y lista del historial
+  App.svelte                barra lateral y secciones (o el asistente)
+  Inicio.svelte             estadísticas y últimos dictados
+  Historial.svelte          buscador y lista del historial (también el resumen de Inicio)
+  Diccionario.svelte        lugar reservado para el diccionario personal
+  Configuracion.svelte      modelo, micrófono, idioma, atajo, preferencias e historial
+  Icono.svelte              íconos de la barra lateral
+  estilos.css               colores (claro y oscuro) y estilos compartidos
   Asistente.svelte          asistente de primer uso
   CapturaAtajo.svelte       captura de un atajo nuevo
   Overlay.svelte            la pastilla con la onda
@@ -148,6 +153,14 @@ Si un dictado va a la misma ventana que el anterior antes de 60 s, se le antepon
 - `secure_delete` para que lo borrado no quede en el archivo, y "Borrar todo" hace `VACUUM`. WAL con `synchronous = NORMAL`: cada dictado no espera al disco (un corte de luz puede perder el último, pero no corrompe la base).
 - La búsqueda usa una función SQL propia, `plegar` (minúsculas y sin tildes; la `ñ` se deja), con `instr` en vez de `LIKE` para no tener que escapar `%` y `_`.
 - La interfaz se actualiza con el evento `historial` (`agregado`, `borrado`, `borrado_todo`, `error`) sin volver a pedir la lista.
+- **Estadísticas** (comando `estadisticas`): una consulta agrupa los dictados por día del calendario local (`date(..., 'localtime')`) y cuenta cuántos días atrás es cada uno; el resto se calcula en Rust (`resumir`, con tests). El tiempo ahorrado es lo que se tardaría tipeando a 40 palabras por minuto menos lo que duró el audio. La racha cuenta días seguidos hasta hoy o hasta ayer, para que no se corte antes del primer dictado del día.
+
+### Ventana principal (`App.svelte`)
+
+- Barra lateral con Inicio, Historial, Diccionario y Configuración, el estado del dictado y "Salir de Wister" (con confirmación: cerrar la ventana solo la esconde en la bandeja).
+- Las secciones quedan montadas y se ocultan con `hidden`: así no se pierden la búsqueda del historial ni el progreso de una descarga al cambiar de sección.
+- Bandeja: doble clic abre la ventana; el menú (Abrir Wister, Salir) va solo en el clic derecho, porque con el izquierdo el primer clic abriría el menú y el doble clic no llegaría.
+- El logo se importa con `?no-inline`: si Vite lo embebiera como `data:`, la CSP no lo dejaría cargar.
 
 ### Modelos (`wister-core/src/models.rs`)
 

@@ -38,17 +38,16 @@ Principios que no se negocian:
 
 ## Estado
 
-**Versión 0.1.0**: dictado push-to-talk completo (atajo, grabación, transcripción, pegado), overlay, configuración, asistente de primer uso e instalador NSIS. El detalle está en `CHANGELOG.md`.
+**Versión 0.1.0**: dictado push-to-talk completo (atajo, grabación, transcripción, pegado), overlay, configuración, asistente de primer uso e instalador NSIS. Sin publicar todavía: VAD con Silero, historial en SQLite y la ventana nueva con barra lateral y estadísticas. El detalle está en `CHANGELOG.md`.
 
 Pendiente, en orden aproximado de prioridad:
 
-1. Rediseño de la ventana: barra lateral con secciones, panel más grande y estadísticas de uso (el historial en SQLite ya está).
-2. Diccionario personal (vía `initial_prompt`) y reemplazos de texto.
-3. Publicar versiones en GitHub Releases, con el instalador firmado (por ejemplo, SignPath).
-4. Actualización con un botón (`tauri-plugin-updater`), que busque versiones nuevas solo cuando el usuario lo pida.
-5. Detectar si la PC tiene una GPU compatible para recomendar el modelo (hoy depende de cómo se compiló).
-6. Investigar por qué Whisper tarda ~150–350 ms en la app contra ~80 ms en el bench.
-7. Más adelante: modo manos libres, cancelar con `Esc`, post-procesado con un LLM local, estilos por app, macOS y Linux.
+1. Diccionario personal (vía `initial_prompt`) y reemplazos de texto, en la sección Diccionario que ya está reservada.
+2. Publicar versiones en GitHub Releases, con el instalador firmado (por ejemplo, SignPath).
+3. Actualización con un botón (`tauri-plugin-updater`), que busque versiones nuevas solo cuando el usuario lo pida.
+4. Detectar si la PC tiene una GPU compatible para recomendar el modelo (hoy depende de cómo se compiló).
+5. Investigar por qué Whisper tarda ~150–350 ms en la app contra ~80 ms en el bench.
+6. Más adelante: modo manos libres, cancelar con `Esc`, post-procesado con un LLM local, estilos por app, macOS y Linux.
 
 ## Estructura
 
@@ -57,7 +56,7 @@ Cargo.toml                 workspace (versión, licencia y perfiles compartidos)
 crates/wister-core/        lib: audio.rs, models.rs, stt.rs, vad.rs (sin Tauri; el modelo de VAD está en assets/)
 crates/wister-cli/         bin `wister`: CLI para probar y medir
 src-tauri/                 app Tauri (bin `wister-app`): hotkey, dictado, pegar, overlay, config, historial, sonidos
-src/                       UI en Svelte 5 (App, Asistente, CapturaAtajo, Historial, Overlay, tipos.ts)
+src/                       UI en Svelte 5: App (barra lateral), Inicio, Historial, Diccionario, Configuracion, Asistente, Overlay; estilos.css y tipos.ts
 scripts/                   dev.ps1, build.ps1, logo.py
 docs/arquitectura.md       diseño, módulos y decisiones
 docs/fase-0.md             compilación, CLI y mediciones de modelos

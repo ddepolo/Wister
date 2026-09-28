@@ -20,6 +20,7 @@ Transcription runs **on your PC** with [Whisper](https://github.com/openai/whisp
 - A small waveform overlay that never steals focus from the app you are typing in.
 - First-run wizard: language, model download, microphone test and a first dictation.
 - Local dictation history (SQLite) with search, copy and delete; it can be turned off and wiped.
+- Usage stats: words dictated today, this week and overall, time saved compared to typing, streak and speaking speed.
 - Settings: model, microphone, language, hotkey, sounds and start with Windows.
 - Does not hallucinate text: a voice activity detector (Silero VAD) keeps only speech and trims silences; recordings with only noise are discarded.
 

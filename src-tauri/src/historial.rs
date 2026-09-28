@@ -164,6 +164,96 @@ fn borrar_todo(conexion: &Connection) -> Result<()> {
     Ok(())
 }
 
+/// Velocidad de tipeo con la que se compara para calcular el tiempo ahorrado.
+const PALABRAS_POR_MINUTO_TIPEANDO: u64 = 40;
+
+#[derive(Debug, Default, PartialEq, Eq, Serialize)]
+pub struct Estadisticas {
+    pub palabras_hoy: u64,
+    /// Hoy y los seis días anteriores.
+    pub palabras_semana: u64,
+    pub palabras_total: u64,
+    pub dictados_total: u64,
+    /// Lo que se hubiera tardado tipeando menos lo que se tardó hablando.
+    pub segundos_ahorrados: u64,
+    /// Días seguidos con algún dictado, hasta hoy o hasta ayer (la racha no se corta
+    /// por no haber dictado todavía hoy).
+    pub racha_dias: u32,
+    /// Por minuto de audio grabado, con las pausas incluidas.
+    pub palabras_por_minuto: u32,
+}
+
+#[derive(Debug, Clone, Copy)]
+struct Dia {
+    /// Cuántos días antes de hoy (0 = hoy), según el calendario local.
+    atras: i64,
+    palabras: u64,
+    audio_ms: u64,
+    dictados: u64,
+}
+
+fn por_dia(conexion: &Connection, ahora: i64) -> Result<Vec<Dia>> {
+    let mut consulta = conexion.prepare_cached(
+        "SELECT CAST(julianday(date(?1 / 1000, 'unixepoch', 'localtime'))
+                   - julianday(date(fecha / 1000, 'unixepoch', 'localtime')) AS INTEGER) AS atras,
+                SUM(palabras), SUM(audio_ms), COUNT(*)
+         FROM dictados GROUP BY atras ORDER BY atras",
+    )?;
+    let filas = consulta.query_map([ahora], |f| {
+        Ok(Dia {
+            atras: f.get(0)?,
+            palabras: f.get::<_, i64>(1)?.max(0) as u64,
+            audio_ms: f.get::<_, i64>(2)?.max(0) as u64,
+            dictados: f.get::<_, i64>(3)?.max(0) as u64,
+        })
+    })?;
+    Ok(filas.collect::<rusqlite::Result<_>>()?)
+}
+
+/// `dias` ordenados por `atras`, de hoy hacia atrás.
+fn resumir(dias: &[Dia]) -> Estadisticas {
+    let palabras_total: u64 = dias.iter().map(|d| d.palabras).sum();
+    let audio_ms: u64 = dias.iter().map(|d| d.audio_ms).sum();
+    let segundos_tipeando = palabras_total * 60 / PALABRAS_POR_MINUTO_TIPEANDO;
+
+    // Un día "en el futuro" (se atrasó el reloj) cuenta en los totales pero no en la racha.
+    let mut racha = 0;
+    let mut atras = dias.iter().map(|d| d.atras).filter(|&a| a >= 0).peekable();
+    if let Some(&primero) = atras.peek() {
+        if primero <= 1 {
+            racha = atras
+                .zip(primero..)
+                .take_while(|(a, esperado)| a == esperado)
+                .count() as u32;
+        }
+    }
+
+    Estadisticas {
+        palabras_hoy: dias
+            .iter()
+            .filter(|d| d.atras == 0)
+            .map(|d| d.palabras)
+            .sum(),
+        palabras_semana: dias
+            .iter()
+            .filter(|d| (0..7).contains(&d.atras))
+            .map(|d| d.palabras)
+            .sum(),
+        palabras_total,
+        dictados_total: dias.iter().map(|d| d.dictados).sum(),
+        segundos_ahorrados: segundos_tipeando.saturating_sub(audio_ms / 1000),
+        racha_dias: racha,
+        palabras_por_minuto: (palabras_total * 60_000).checked_div(audio_ms).unwrap_or(0) as u32,
+    }
+}
+
+fn ahora() -> i64 {
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map(|d| d.as_millis() as i64)
+        .unwrap_or_default()
+}
+
 /// Conexión al historial, que se abre la primera vez que se usa.
 ///
 /// Se registra antes del `setup` (no necesita nada de él), así que los comandos pueden
@@ -197,10 +287,7 @@ pub fn anotar(app: &AppHandle, texto: &str, audio_ms: u64, destino: Option<&str>
     let Some(historial) = app.try_state::<Historial>() else {
         return;
     };
-    let fecha = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_millis() as i64)
-        .unwrap_or_default();
+    let fecha = ahora();
     let audio_ms = u32::try_from(audio_ms).unwrap_or(u32::MAX);
     let cambio = match historial.con(app, |c| agregar(c, fecha, texto, audio_ms, destino)) {
         Ok(dictado) => Cambio::Agregado { dictado },
@@ -221,6 +308,13 @@ pub fn listar_historial(
 ) -> Result<Vec<Dictado>, String> {
     historial
         .con(&app, |c| listar(c, &busqueda, antes_de, limite))
+        .map_err(|e| format!("{e:#}"))
+}
+
+#[tauri::command]
+pub fn estadisticas(app: AppHandle, historial: State<Historial>) -> Result<Estadisticas, String> {
+    historial
+        .con(&app, |c| Ok(resumir(&por_dia(c, ahora())?)))
         .map_err(|e| format!("{e:#}"))
 }
 
@@ -340,6 +434,78 @@ mod tests {
         assert_eq!(textos(&listar(&c, "", None, 10).unwrap()), ["hola"]);
         drop(c);
         let _ = std::fs::remove_dir_all(dir);
+    }
+
+    fn dia(atras: i64, palabras: u64) -> Dia {
+        Dia {
+            atras,
+            palabras,
+            audio_ms: palabras * 400,
+            dictados: 1,
+        }
+    }
+
+    #[test]
+    fn sin_dictados_las_estadisticas_dan_cero() {
+        assert_eq!(resumir(&[]), Estadisticas::default());
+    }
+
+    #[test]
+    fn las_palabras_se_suman_por_hoy_semana_y_total() {
+        let e = resumir(&[dia(0, 10), dia(3, 20), dia(6, 30), dia(7, 40)]);
+        assert_eq!(e.palabras_hoy, 10);
+        assert_eq!(e.palabras_semana, 60);
+        assert_eq!(e.palabras_total, 100);
+        assert_eq!(e.dictados_total, 4);
+    }
+
+    #[test]
+    fn el_tiempo_ahorrado_descuenta_lo_que_se_hablo() {
+        // 400 palabras: 10 min tipeando, 160 s hablando (400 ms por palabra).
+        let e = resumir(&[dia(0, 400)]);
+        assert_eq!(e.segundos_ahorrados, 600 - 160);
+        assert_eq!(e.palabras_por_minuto, 150);
+    }
+
+    #[test]
+    fn la_racha_cuenta_dias_seguidos_hasta_hoy() {
+        assert_eq!(
+            resumir(&[dia(0, 1), dia(1, 1), dia(2, 1), dia(4, 1)]).racha_dias,
+            3
+        );
+    }
+
+    #[test]
+    fn la_racha_sigue_si_todavia_no_se_dicto_hoy() {
+        assert_eq!(resumir(&[dia(1, 1), dia(2, 1)]).racha_dias, 2);
+    }
+
+    #[test]
+    fn la_racha_se_corta_si_ayer_no_se_dicto() {
+        assert_eq!(resumir(&[dia(2, 1), dia(3, 1)]).racha_dias, 0);
+    }
+
+    #[test]
+    fn un_dia_en_el_futuro_no_rompe_la_racha() {
+        let e = resumir(&[dia(-1, 5), dia(0, 1), dia(1, 1)]);
+        assert_eq!(e.racha_dias, 2);
+        assert_eq!(e.palabras_total, 7);
+    }
+
+    #[test]
+    fn por_dia_agrupa_segun_el_calendario() {
+        const DIA: i64 = 86_400_000;
+        let ahora = 1_790_510_400_000; // un mediodía UTC
+        let c = en_memoria();
+        agregar(&c, ahora, "uno dos", 1000, None).unwrap();
+        agregar(&c, ahora - 60_000, "tres", 1000, None).unwrap();
+        agregar(&c, ahora - 2 * DIA, "cuatro cinco seis", 1000, None).unwrap();
+        let dias = por_dia(&c, ahora).unwrap();
+        let resumen: Vec<_> = dias
+            .iter()
+            .map(|d| (d.atras, d.palabras, d.dictados))
+            .collect();
+        assert_eq!(resumen, [(0, 3, 2), (2, 3, 1)]);
     }
 
     #[test]
