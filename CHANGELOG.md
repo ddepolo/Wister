@@ -15,6 +15,7 @@ Los cambios de cada versión. El formato sigue [Keep a Changelog](https://keepac
 
 - Si Whisper estuvo quieto unos segundos, Wister despierta la placa de video mientras hablás: después de estar quieta tardaba 2 a 3 veces más en transcribir. Solo se hace si es barato (en placas lentas demoraría el dictado).
 - Los reemplazos no distinguen tildes ("nueva linea" también funciona); la ñ sí se distingue.
+- El instalador se muestra en español si Windows está en español (en inglés si no).
 - La prueba de rendimiento mide también una "ventana ajustada" (Whisper procesa solo lo que dura el dictado), para evaluarla en PCs lentas.
 - El registro anota los segundos de voz y cuánto hacía que no se usaba Whisper en cada dictado.
 
