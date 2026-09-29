@@ -1,10 +1,15 @@
-//! Overlay: la pastilla con la forma de onda que se ve mientras se graba.
+//! Overlay: la pastilla con la forma de onda que se ve mientras se graba, y con
+//! avisos cortos ("Copiado al portapapeles").
 //!
 //! No puede quedarse con el foco nunca: el `Ctrl+V` tiene que llegarle a la app
 //! donde el usuario está escribiendo. Por eso en Windows lleva `WS_EX_NOACTIVATE` y
 //! se muestra con `SW_SHOWNOACTIVATE` (el `show()` de Tauri activa la ventana).
 
-use tauri::{AppHandle, Manager, PhysicalPosition, WebviewWindow};
+use std::time::Duration;
+
+use tauri::{AppHandle, Emitter, Manager, PhysicalPosition, WebviewWindow};
+
+use crate::dictado::{Estado, EstadoActual};
 
 const VENTANA: &str = "overlay";
 /// Separación entre la pastilla y el borde de abajo del área de trabajo (sobre la barra de tareas).
@@ -35,6 +40,24 @@ pub fn mostrar(app: &AppHandle) {
     windows::mostrar(&v);
     #[cfg(not(windows))]
     let _ = v.show();
+}
+
+/// Muestra `texto` en la pastilla por un momento.
+pub fn avisar(app: &AppHandle, texto: &str) {
+    let _ = app.emit_to(VENTANA, "aviso", texto);
+    mostrar(app);
+    let app = app.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(1500));
+        // Si mientras tanto se empezó a dictar, la pastilla ya es la de la grabación.
+        let dictando = app.try_state::<EstadoActual>().is_some_and(|e| {
+            e.0.lock()
+                .is_ok_and(|e| matches!(*e, Estado::Grabando | Estado::Transcribiendo))
+        });
+        if !dictando {
+            ocultar(&app);
+        }
+    });
 }
 
 pub fn ocultar(app: &AppHandle) {

@@ -4,6 +4,20 @@ Los cambios de cada versión. El formato sigue [Keep a Changelog](https://keepac
 
 ## [Sin publicar]
 
+### Agregado
+
+- "Copiar el último dictado" en el menú de la bandeja: lo deja en el portapapeles y lo avisa en la pastilla de abajo.
+- Configuración: "No poner punto al final", para que los mensajes de chat no terminen con punto.
+- Diccionario: botón "Agregar comandos de voz", con "punto y aparte", "nueva línea", "punto y coma", "dos puntos", "abrir paréntesis" y "cerrar paréntesis". Los signos se pegan a las palabras y se sacan los puntos que Whisper agrega alrededor de cada comando: "Abrir paréntesis. Hola. Cerrar paréntesis." queda "(Hola).".
+- CLI: `bench` con `--pausa` (esperar entre mediciones), `--despertar` y `--ventana-ajustada`.
+
+### Cambiado
+
+- Si Whisper estuvo quieto unos segundos, Wister despierta la placa de video mientras hablás: después de estar quieta tardaba 2 a 3 veces más en transcribir. Solo se hace si es barato (en placas lentas demoraría el dictado).
+- Los reemplazos no distinguen tildes ("nueva linea" también funciona); la ñ sí se distingue.
+- La prueba de rendimiento mide también una "ventana ajustada" (Whisper procesa solo lo que dura el dictado), para evaluarla en PCs lentas.
+- El registro anota los segundos de voz y cuánto hacía que no se usaba Whisper en cada dictado.
+
 ## [0.3.0] - 2026-09-28
 
 Diccionario personal, más control del micrófono y herramientas para diagnosticar problemas en otras PCs.

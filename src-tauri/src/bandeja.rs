@@ -7,11 +7,13 @@ use tauri::{AppHandle, Manager, Wry};
 use wister_core::audio;
 
 use crate::config;
+use crate::dictado::{CanalDictado, Mensaje, UltimoDictado};
 
 const ID: &str = "wister";
 const VENTANA_CONFIG: &str = "config";
 const MIC_PREDETERMINADO: &str = "mic-predeterminado";
 const PREFIJO_MIC: &str = "mic:";
+const COPIAR_ULTIMO: &str = "copiar-ultimo";
 
 pub fn crear(app: &AppHandle) -> tauri::Result<()> {
     let mut bandeja = TrayIconBuilder::with_id(ID)
@@ -33,6 +35,11 @@ pub fn crear(app: &AppHandle) -> tauri::Result<()> {
         .on_menu_event(|app, event| match event.id.as_ref() {
             "config" => mostrar_config(app),
             "salir" => app.exit(0),
+            COPIAR_ULTIMO => {
+                if let Some(canal) = app.try_state::<CanalDictado>() {
+                    let _ = canal.0.send(Mensaje::CopiarUltimo);
+                }
+            }
             MIC_PREDETERMINADO => elegir_microfono(app, None),
             id => {
                 if let Some(nombre) = id.strip_prefix(PREFIJO_MIC) {
@@ -62,10 +69,20 @@ pub fn actualizar(app: &AppHandle) {
 
 fn menu(app: &AppHandle) -> tauri::Result<Menu<Wry>> {
     let abrir = MenuItem::with_id(app, "config", "Abrir Wister", true, None::<&str>)?;
+    let hay_ultimo = app
+        .try_state::<UltimoDictado>()
+        .is_some_and(|u| u.0.lock().is_ok_and(|t| t.is_some()));
+    let copiar = MenuItem::with_id(
+        app,
+        COPIAR_ULTIMO,
+        "Copiar el último dictado",
+        hay_ultimo,
+        None::<&str>,
+    )?;
     let microfono = submenu_microfono(app)?;
     let separador = PredefinedMenuItem::separator(app)?;
     let salir = MenuItem::with_id(app, "salir", "Salir", true, None::<&str>)?;
-    Menu::with_items(app, &[&abrir, &microfono, &separador, &salir])
+    Menu::with_items(app, &[&abrir, &copiar, &microfono, &separador, &salir])
 }
 
 fn submenu_microfono(app: &AppHandle) -> tauri::Result<Submenu<Wry>> {

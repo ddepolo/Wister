@@ -58,6 +58,8 @@ export type Config = {
   vocabulario: string[];
   /** Cambios sobre el texto transcripto; en `reemplazar`, `\n` es un salto de línea. */
   reemplazos: Reemplazo[];
+  /** Sacar el punto que Whisper pone al final. */
+  sin_punto_final: boolean;
 };
 
 export type Reemplazo = { buscar: string; reemplazar: string };

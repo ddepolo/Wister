@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { invoke } from "@tauri-apps/api/core";
   import type { Config, Reemplazo } from "./tipos";
 
   let {
@@ -55,6 +56,19 @@
     guardarReemplazos([...otros, { buscar: b, reemplazar: reemplazarPor }]);
     buscar = "";
     reemplazarPor = "";
+  }
+
+  /** Suma los comandos de voz que falten, sin tocar los que ya estén. */
+  async function agregarComandos() {
+    try {
+      const comandos = await invoke<Reemplazo[]>("comandos_de_voz");
+      const nuevos = comandos.filter(
+        (c) => !config.reemplazos.some((r) => r.buscar.toLowerCase() === c.buscar.toLowerCase()),
+      );
+      guardarReemplazos([...config.reemplazos, ...nuevos]);
+    } catch (e) {
+      error = String(e);
+    }
   }
 
   const quitarReemplazo = (i: number) =>
@@ -152,6 +166,13 @@
   {:else}
     <p class="muted vacio">Todavía no agregaste reemplazos.</p>
   {/if}
+  <div class="comandos">
+    <button onclick={agregarComandos}>Agregar comandos de voz</button>
+    <span class="muted">
+      "punto y aparte", "nueva línea", "punto y coma", "dos puntos", "abrir paréntesis" y "cerrar
+      paréntesis". Podés quitar los que no uses.
+    </span>
+  </div>
 </section>
 
 <style>
@@ -219,6 +240,16 @@
   }
   .reemplazo {
     align-items: center;
+  }
+  .comandos {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 12px;
+    font-size: 12px;
+  }
+  .comandos button {
+    flex: none;
   }
   .flecha {
     opacity: 0.6;

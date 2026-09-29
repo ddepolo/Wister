@@ -81,13 +81,39 @@ fn reemplazar_uno(texto: &str, buscar: &[char], por: &str) -> String {
             continue;
         }
         i += buscar.len();
+        // Un signo que va pegado a la palabra anterior: "compras, dos puntos, pan" →
+        // "compras: pan". Sin el espacio ni la coma que Whisper pone antes.
+        let cierra = por.starts_with(|c: char| ".,;:)?!".contains(c));
+        // Uno que abre: "nota, abrir paréntesis, importante" → "nota (importante".
+        let abre = por.starts_with(['(', '¿', '¡']);
         if por.starts_with('\n') {
             // "Hola. Punto y aparte. Chau." → "Hola.\nChau.": sin el espacio de antes...
             while s.ends_with(' ') {
                 s.pop();
             }
         }
+        if cierra || abre {
+            // Whisper toma cada comando como el fin de una oración y le pone un punto:
+            // "Abrir paréntesis. Hola. Cerrar paréntesis." Antes del signo se sacan los
+            // puntos y comas que puso; después de uno que cierra quedan, porque son de la
+            // oración: "(Hola)."
+            while s.ends_with([' ', ',', '.']) {
+                s.pop();
+            }
+            if abre && !s.is_empty() && !s.ends_with('\n') {
+                s.push(' ');
+            }
+        }
         s.push_str(por);
+        if abre || por.ends_with([';', ':']) {
+            // ...y lo que Whisper pone después: "(. Hola" o ": , pan".
+            while i < t.len() && matches!(t[i], ',' | ' ' | '.') {
+                i += 1;
+            }
+            if !abre {
+                s.push(' ');
+            }
+        }
         if por.is_empty() && s.trim_end().ends_with(',') {
             // "Quiero, o sea, que..." → "Quiero, que...": sin la coma repetida.
             let mut j = i;
@@ -108,13 +134,45 @@ fn reemplazar_uno(texto: &str, buscar: &[char], por: &str) -> String {
     s
 }
 
+/// Comandos de voz listos para agregar desde el Diccionario, como reemplazos comunes.
+/// "Coma" no está: también es una palabra ("que coma algo").
+pub const COMANDOS: &[(&str, &str)] = &[
+    ("punto y aparte", "\\n"),
+    ("nueva línea", "\\n"),
+    ("punto y coma", ";"),
+    ("dos puntos", ":"),
+    ("abrir paréntesis", "("),
+    ("cerrar paréntesis", ")"),
+];
+
+#[tauri::command]
+pub fn comandos_de_voz() -> Vec<Reemplazo> {
+    COMANDOS
+        .iter()
+        .map(|&(buscar, reemplazar)| Reemplazo {
+            buscar: buscar.into(),
+            reemplazar: reemplazar.into(),
+        })
+        .collect()
+}
+
+/// Saca el punto final que Whisper pone siempre, para chats. Los puntos suspensivos,
+/// los signos de pregunta y exclamación quedan.
+pub fn sin_punto_final(texto: &str) -> String {
+    let t = texto.trim_end();
+    match t.strip_suffix('.') {
+        Some(sin) if !sin.ends_with('.') => sin.to_owned(),
+        _ => t.to_owned(),
+    }
+}
+
 /// Si `buscar` está en `t` a partir de `i`, como palabra completa.
 fn coincide(t: &[char], i: usize, buscar: &[char]) -> bool {
     let fin = i + buscar.len();
     if fin > t.len() {
         return false;
     }
-    let parecidas = |a: char, b: char| a == b || a.to_lowercase().eq(b.to_lowercase());
+    let parecidas = |a: char, b: char| a == b || plegar(a) == plegar(b);
     if !t[i..fin].iter().zip(buscar).all(|(&a, &b)| parecidas(a, b)) {
         return false;
     }
@@ -123,6 +181,19 @@ fn coincide(t: &[char], i: usize, buscar: &[char]) -> bool {
     let borde_despues =
         !buscar[buscar.len() - 1].is_alphanumeric() || fin == t.len() || !t[fin].is_alphanumeric();
     borde_antes && borde_despues
+}
+
+/// Minúscula y sin tilde, para comparar ("Línea" y "linea" son la misma palabra). La
+/// `ñ` se deja: "año" y "ano" no son lo mismo.
+fn plegar(c: char) -> char {
+    match c.to_lowercase().next().unwrap_or(c) {
+        'á' | 'à' | 'â' | 'ä' => 'a',
+        'é' | 'è' | 'ê' | 'ë' => 'e',
+        'í' | 'ì' | 'î' | 'ï' => 'i',
+        'ó' | 'ò' | 'ô' | 'ö' => 'o',
+        'ú' | 'ù' | 'û' | 'ü' => 'u',
+        otro => otro,
+    }
 }
 
 /// Sin espacios dobles (quedan al borrar una frase) ni espacios pegados a un salto de línea.
@@ -193,6 +264,70 @@ mod tests {
         );
         let r = [regla("este", "")];
         assert_eq!(reemplazar("Bueno este vamos.", &r), "Bueno vamos.");
+    }
+
+    fn con_comandos(texto: &str) -> String {
+        reemplazar(texto, &comandos_de_voz())
+    }
+
+    #[test]
+    fn los_signos_dictados_van_pegados_a_la_palabra() {
+        assert_eq!(
+            con_comandos("Lista de compras, dos puntos, pan, leche."),
+            "Lista de compras: pan, leche."
+        );
+        assert_eq!(con_comandos("Uno punto y coma dos."), "Uno; dos.");
+        assert_eq!(
+            con_comandos("Es una nota, abrir paréntesis, importante, cerrar paréntesis."),
+            "Es una nota (importante)."
+        );
+        assert_eq!(
+            con_comandos("Abrir paréntesis hola cerrar paréntesis"),
+            "(hola)"
+        );
+    }
+
+    #[test]
+    fn los_puntos_que_whisper_pone_en_los_comandos_se_sacan() {
+        // Lo que devolvió Whisper al dictar "abrir paréntesis hola, esto es un mensaje
+        // cerrar paréntesis".
+        assert_eq!(
+            con_comandos("Abrir paréntesis. Hola, esto es un mensaje. Cerrar paréntesis."),
+            "(Hola, esto es un mensaje)."
+        );
+        assert_eq!(
+            sin_punto_final(&con_comandos(
+                "Abrir paréntesis. Hola, esto es un mensaje. Cerrar paréntesis."
+            )),
+            "(Hola, esto es un mensaje)"
+        );
+        assert_eq!(
+            con_comandos("Tareas. Dos puntos. Comprar pan."),
+            "Tareas: Comprar pan."
+        );
+    }
+
+    #[test]
+    fn nueva_linea_es_un_salto_de_linea() {
+        assert_eq!(con_comandos("Hola. Nueva línea. Chau."), "Hola.\nChau.");
+        // Whisper a veces escribe sin tilde.
+        assert_eq!(con_comandos("Hola, nueva linea, chau"), "Hola,\nchau");
+    }
+
+    #[test]
+    fn la_enie_no_se_confunde_con_la_ene() {
+        let r = [regla("año", "periodo")];
+        assert_eq!(reemplazar("El ano pasado.", &r), "El ano pasado.");
+        assert_eq!(reemplazar("El AÑO pasado.", &r), "El periodo pasado.");
+    }
+
+    #[test]
+    fn sin_punto_final_saca_solo_el_ultimo_punto() {
+        assert_eq!(sin_punto_final("Nos vemos mañana."), "Nos vemos mañana");
+        assert_eq!(sin_punto_final("Hola. Nos vemos. "), "Hola. Nos vemos");
+        assert_eq!(sin_punto_final("Bueno..."), "Bueno...");
+        assert_eq!(sin_punto_final("¿Venís?"), "¿Venís?");
+        assert_eq!(sin_punto_final("¡Genial!"), "¡Genial!");
     }
 
     #[test]

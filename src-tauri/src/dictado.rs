@@ -44,7 +44,13 @@ pub enum Mensaje {
     /// ...y medir cada modelo con lo grabado.
     MedirRendimiento,
     CancelarRendimiento,
+    /// Copiar el último dictado al portapapeles, desde la bandeja.
+    CopiarUltimo,
 }
+
+/// El texto del último dictado de esta sesión, para copiarlo desde la bandeja.
+#[derive(Default)]
+pub struct UltimoDictado(pub Mutex<Option<String>>);
 
 /// Para mandarle mensajes al hilo de dictado desde los comandos de la UI.
 pub struct CanalDictado(pub Sender<Mensaje>);
@@ -279,6 +285,23 @@ impl Dictado {
             }
             Mensaje::MedirRendimiento => self.medir_rendimiento(),
             Mensaje::CancelarRendimiento => self.cancelar_rendimiento(),
+            Mensaje::CopiarUltimo => self.copiar_ultimo(),
+        }
+    }
+
+    /// Pegar desde la bandeja no es confiable: al abrir el menú el foco pasa a la barra
+    /// de tareas y Windows no deja devolvérselo a otra app. Se copia y se avisa.
+    fn copiar_ultimo(&mut self) {
+        let texto = self
+            .app
+            .try_state::<UltimoDictado>()
+            .and_then(|u| u.0.lock().ok().and_then(|t| t.clone()));
+        let Some(texto) = texto else {
+            return;
+        };
+        match self.copiar(&texto) {
+            Pegado::Hecho => overlay::avisar(&self.app, "Copiado al portapapeles"),
+            otro => log::warn!("no se pudo copiar el último dictado: {otro:?}"),
         }
     }
 
@@ -426,6 +449,11 @@ impl Dictado {
                     ..
                 } = &r
                 {
+                    if let Some(u) = self.app.try_state::<UltimoDictado>() {
+                        if let Ok(mut u) = u.0.lock() {
+                            *u = Some(texto.clone());
+                        }
+                    }
                     if self.config.guardar_historial {
                         historial::anotar(&self.app, texto, *audio_ms, app.as_deref());
                     }
@@ -599,7 +627,10 @@ impl Dictado {
                 motivo: Descarte::SinVoz,
             }));
         }
-        let texto = diccionario::reemplazar(&transcript.text, &self.config.reemplazos);
+        let mut texto = diccionario::reemplazar(&transcript.text, &self.config.reemplazos);
+        if self.config.sin_punto_final {
+            texto = diccionario::sin_punto_final(&texto);
+        }
         if texto.trim().is_empty() {
             // Todo lo dicho era algo que se borra, como una muletilla.
             return Ok(Some(Resultado::Descartado {
@@ -621,6 +652,18 @@ impl Dictado {
     #[cfg(windows)]
     fn pegar(&self, texto: &str) -> Pegado {
         self.pegador.pegar(texto)
+    }
+
+    #[cfg(windows)]
+    fn copiar(&self, texto: &str) -> Pegado {
+        self.pegador.copiar(texto)
+    }
+
+    #[cfg(not(windows))]
+    fn copiar(&self, _texto: &str) -> Pegado {
+        Pegado::Error {
+            mensaje: "copiar todavía solo funciona en Windows".into(),
+        }
     }
 
     #[cfg(not(windows))]

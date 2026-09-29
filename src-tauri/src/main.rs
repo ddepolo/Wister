@@ -32,6 +32,7 @@ fn main() {
         ))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .manage(dictado::EstadoActual::default())
+        .manage(dictado::UltimoDictado::default())
         .manage(config::Descargas::default())
         .manage(historial::Historial::default())
         .invoke_handler(tauri::generate_handler![
@@ -52,6 +53,7 @@ fn main() {
             historial::estadisticas,
             salir,
             abrir_pagina,
+            diccionario::comandos_de_voz,
             actualizar::buscar_actualizacion,
             actualizar::instalar_actualizacion,
             diagnostico::exportar_diagnostico,

@@ -88,6 +88,8 @@ mod windows {
 
     struct Pedido {
         texto: String,
+        /// Solo dejarlo en el portapapeles, sin `Ctrl+V` ni restaurar lo anterior.
+        solo_copiar: bool,
         respuesta: Sender<Pegado>,
     }
 
@@ -116,9 +118,19 @@ mod windows {
         }
 
         pub fn pegar(&self, texto: &str) -> Pegado {
+            self.pedir(texto, false)
+        }
+
+        /// Deja el texto en el portapapeles para que el usuario lo pegue donde quiera.
+        pub fn copiar(&self, texto: &str) -> Pegado {
+            self.pedir(texto, true)
+        }
+
+        fn pedir(&self, texto: &str, solo_copiar: bool) -> Pegado {
             let (tx, rx) = mpsc::channel();
             let pedido = Pedido {
                 texto: texto.to_owned(),
+                solo_copiar,
                 respuesta: tx,
             };
             if self.pedidos.send(pedido).is_err() {
@@ -157,6 +169,9 @@ mod windows {
         let responder = |p: Pegado| {
             let _ = pedido.respuesta.send(p);
         };
+        if pedido.solo_copiar {
+            return responder(dejar_en_portapapeles(ventana, &pedido.texto, Pegado::Hecho));
+        }
 
         if !esperar_teclas_sueltas() {
             responder(dejar_en_portapapeles(

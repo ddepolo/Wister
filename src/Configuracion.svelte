@@ -368,6 +368,14 @@
   <label class="casilla">
     <input
       type="checkbox"
+      checked={config.sin_punto_final}
+      onchange={(e) => aplicar({ sin_punto_final: e.currentTarget.checked })}
+    />
+    No poner punto al final (queda más natural en los chats)
+  </label>
+  <label class="casilla">
+    <input
+      type="checkbox"
       checked={autoarranque}
       onchange={(e) => cambiarAutoarranque(e.currentTarget.checked)}
     />

@@ -4,7 +4,8 @@
   // Mitad de las barras: se dibujan en espejo, con lo más reciente en el centro.
   const HISTORIA = 14;
 
-  let modo = $state<"grabando" | "transcribiendo">("grabando");
+  let modo = $state<"grabando" | "transcribiendo" | "aviso">("grabando");
+  let aviso = $state("");
   let historia = $state<number[]>(Array(HISTORIA).fill(0));
   const barras = $derived([...historia].reverse().concat(historia));
 
@@ -15,6 +16,11 @@
     } else if (payload.tipo === "transcribiendo") {
       modo = "transcribiendo";
     }
+  });
+
+  listen<string>("aviso", ({ payload }) => {
+    aviso = payload;
+    modo = "aviso";
   });
 
   // RMS de cada tramo de 50 ms. La voz normal da entre 0,02 y 0,2: la raíz
@@ -33,8 +39,10 @@
         <span style="height: max(3px, {n * 100}%)"></span>
       {/each}
     </div>
-  {:else}
+  {:else if modo === "transcribiendo"}
     <div class="pensando"><span></span><span></span><span></span></div>
+  {:else}
+    <div class="aviso"><span class="tilde">✓</span>{aviso}</div>
   {/if}
 </div>
 
@@ -80,6 +88,19 @@
   .pensando {
     display: flex;
     gap: 6px;
+  }
+  .aviso {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin: 0 -8px;
+    font: 12px "Segoe UI", system-ui, sans-serif;
+    color: #f4f4f5;
+    white-space: nowrap;
+  }
+  .tilde {
+    color: #86efac;
+    font-weight: 600;
   }
   .pensando span {
     width: 7px;

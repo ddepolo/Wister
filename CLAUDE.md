@@ -44,16 +44,14 @@ Cancelar un dictado con `Esc` ya funciona: cualquier otra tecla apretada mientra
 
 Pendiente para la 0.4.0, en orden aproximado de prioridad:
 
-1. **Ventana de audio ajustada al dictado** (`audio_ctx` de whisper.cpp): Whisper procesa siempre 30 s aunque se dicten 3. En la notebook de prueba (Ryzen 5 5500U, Radeon integrada) transcribir 1 s de silencio tardó casi lo mismo que 11 s de voz. Puede hacerlo 2–4 veces más rápido en máquinas lentas, pero dicen que a veces baja la calidad: medirlo con la prueba de rendimiento y activarlo solo si los aciertos se mantienen.
-2. **Despertar la GPU al apretar el atajo**: mientras se habla, un trabajo mínimo en la GPU para que no esté con los relojes bajos al soltar. Es la pista de por qué Whisper tarda ~150–350 ms en la app contra ~80 ms en el bench (con la GPU recién usada, la prueba da ~110 ms con 10 s). El registro dice si sirve.
-3. **"Pegar el último dictado otra vez"** en el menú de la bandeja.
-4. **"No poner punto final"** (casilla general; más adelante, por app).
-5. **Comandos de voz listos**: un botón en Diccionario que carga reemplazos como "punto y aparte", "nueva línea", "abrir paréntesis", "dos puntos".
-6. **Tema claro / oscuro / automático** en Configuración (hoy sigue el modo de apps de Windows).
-7. **Idioma en la bandeja**, como el micrófono.
-8. **Avisar si un modelo no entra en la RAM** antes de descargarlo (con 8 GB, `large-v3-turbo` sin cuantizar puede poner la PC muy lenta).
-9. **Modo manos libres**: tocar el atajo para empezar y otra vez para terminar. Toca `hotkey::Detector`, que es delicado.
-10. **Instaladores compilados en GitHub Actions y firmados** con SignPath Foundation (gratis para proyectos libres; firma solo lo compilado en CI). Arrancar la postulación temprano, porque tarda.
+Hecho sin publicar (ver `CHANGELOG.md`): despertar la GPU mientras se habla, copiar el último dictado desde la bandeja, "No poner punto al final" y comandos de voz listos.
+
+1. **Ventana de audio ajustada** (`audio_ctx`): descartada para dictar (con `turbo` escribe cualquier cosa y en GPU compila shaders por tamaño). Falta ver en la notebook, con `small`, qué dice la columna de la prueba de rendimiento; si no sirve, sacar la columna antes de publicar.
+2. **Tema claro / oscuro / automático** en Configuración (hoy sigue el modo de apps de Windows).
+3. **Idioma en la bandeja**, como el micrófono.
+4. **Avisar si un modelo no entra en la RAM** antes de descargarlo (con 8 GB, `large-v3-turbo` sin cuantizar puede poner la PC muy lenta).
+5. **Modo manos libres**: tocar el atajo para empezar y otra vez para terminar. Toca `hotkey::Detector`, que es delicado.
+6. **Instaladores compilados en GitHub Actions y firmados** con SignPath Foundation (gratis para proyectos libres; firma solo lo compilado en CI). Arrancar la postulación temprano, porque tarda.
 
 En espera: elegir CPU o GPU a mano. En la notebook de prueba la GPU integrada fue 2,6 veces más rápida que la CPU, así que por ahora no hace falta; se retoma si la prueba de rendimiento muestra un caso contrario.
 

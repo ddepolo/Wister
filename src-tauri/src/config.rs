@@ -39,6 +39,8 @@ pub struct Config {
     pub vocabulario: Vec<String>,
     /// Cambios que se aplican al texto transcripto, en orden.
     pub reemplazos: Vec<Reemplazo>,
+    /// Sacar el punto que Whisper pone al final (queda raro en los chats).
+    pub sin_punto_final: bool,
 }
 
 impl Default for Config {
@@ -54,6 +56,7 @@ impl Default for Config {
             guardar_historial: true,
             vocabulario: Vec::new(),
             reemplazos: Vec::new(),
+            sin_punto_final: false,
         }
     }
 }
@@ -346,6 +349,7 @@ mod tests {
         assert!(c.guardar_historial);
         assert!(c.vocabulario.is_empty());
         assert!(c.reemplazos.is_empty());
+        assert!(!c.sin_punto_final);
     }
 
     #[test]
@@ -387,6 +391,7 @@ mod tests {
                 buscar: "Chat GPT".into(),
                 reemplazar: "ChatGPT".into(),
             }],
+            sin_punto_final: true,
         };
         let texto = serde_json::to_string(&c).unwrap();
         assert_eq!(serde_json::from_str::<Config>(&texto).unwrap(), c);
