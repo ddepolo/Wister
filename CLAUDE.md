@@ -42,12 +42,22 @@ Principios que no se negocian:
 
 Cancelar un dictado con `Esc` ya funciona: cualquier otra tecla apretada mientras se graba lo cancela.
 
-Pendiente, en orden aproximado de prioridad:
+Pendiente para la 0.4.0, en orden aproximado de prioridad:
 
-1. Workflow de GitHub Actions que compile los instaladores al crear un tag, y firmarlos (SignPath Foundation, gratis para proyectos libres, firma solo lo compilado en CI).
-2. Decidir si hace falta elegir CPU o GPU a mano: con Vulkan ya se detecta si hay GPU, pero una integrada débil puede ser más lenta que la CPU (la prueba de rendimiento lo muestra).
-3. Investigar por qué Whisper tarda ~150–350 ms en la app contra ~80 ms en el bench. Pista: con la GPU recién usada, la prueba de rendimiento da ~110 ms con 10 s de audio; puede ser que la GPU baje los relojes en reposo.
-4. Más adelante: modo manos libres, post-procesado con un LLM local, estilos por app, macOS y Linux.
+1. **Ventana de audio ajustada al dictado** (`audio_ctx` de whisper.cpp): Whisper procesa siempre 30 s aunque se dicten 3. En la notebook de prueba (Ryzen 5 5500U, Radeon integrada) transcribir 1 s de silencio tardó casi lo mismo que 11 s de voz. Puede hacerlo 2–4 veces más rápido en máquinas lentas, pero dicen que a veces baja la calidad: medirlo con la prueba de rendimiento y activarlo solo si los aciertos se mantienen.
+2. **Despertar la GPU al apretar el atajo**: mientras se habla, un trabajo mínimo en la GPU para que no esté con los relojes bajos al soltar. Es la pista de por qué Whisper tarda ~150–350 ms en la app contra ~80 ms en el bench (con la GPU recién usada, la prueba da ~110 ms con 10 s). El registro dice si sirve.
+3. **"Pegar el último dictado otra vez"** en el menú de la bandeja.
+4. **"No poner punto final"** (casilla general; más adelante, por app).
+5. **Comandos de voz listos**: un botón en Diccionario que carga reemplazos como "punto y aparte", "nueva línea", "abrir paréntesis", "dos puntos".
+6. **Tema claro / oscuro / automático** en Configuración (hoy sigue el modo de apps de Windows).
+7. **Idioma en la bandeja**, como el micrófono.
+8. **Avisar si un modelo no entra en la RAM** antes de descargarlo (con 8 GB, `large-v3-turbo` sin cuantizar puede poner la PC muy lenta).
+9. **Modo manos libres**: tocar el atajo para empezar y otra vez para terminar. Toca `hotkey::Detector`, que es delicado.
+10. **Instaladores compilados en GitHub Actions y firmados** con SignPath Foundation (gratis para proyectos libres; firma solo lo compilado en CI). Arrancar la postulación temprano, porque tarda.
+
+En espera: elegir CPU o GPU a mano. En la notebook de prueba la GPU integrada fue 2,6 veces más rápida que la CPU, así que por ahora no hace falta; se retoma si la prueba de rendimiento muestra un caso contrario.
+
+Más adelante: post-procesado con un LLM local, estilos por app, macOS y Linux.
 
 ## Estructura
 
