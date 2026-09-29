@@ -215,7 +215,7 @@ Dos trampas que resuelven `scripts/dev.ps1` y `scripts/build.ps1`:
 ## Publicar una versión
 
 1. Subir la versión en `Cargo.toml` y `package.json`, y pasar lo de "Sin publicar" del `CHANGELOG.md` a su sección.
-2. `.\scripts\release.ps1`: compila los dos instaladores y deja en `C:\wr\publicar\v<versión>\` los `.exe`, `latest.json`, `notas.md` y `SHA256SUMS.txt`.
+2. `.\scripts\release.ps1`: compila los dos instaladores y deja en `publicar\v<versión>\` (dentro del proyecto, ignorada por git) los `.exe`, `latest.json`, `notas.md` y `SHA256SUMS.txt`.
 3. Tag `v<versión>`, push, y `gh release create v<versión> --title "Wister <versión>" --notes-file notas.md` con esos archivos.
 
 ### Actualizaciones (`actualizar.rs`)

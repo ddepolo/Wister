@@ -2,12 +2,12 @@
 # CPU) y escribe latest.json (lo que lee el actualizador, con las firmas), notas.md
 # (la sección del CHANGELOG) y SHA256SUMS.txt.
 #
-#   .\scripts\release.ps1                # deja todo en C:\wr\publicar\v<versión>
+#   .\scripts\release.ps1                # deja todo en publicar\v<versión> (en el proyecto)
 #   .\scripts\release.ps1 -Prueba        # para probar el actualizador en esta PC
 #   .\scripts\release.ps1 -SinCompilar   # reusa los instaladores ya compilados
 #
 # -Prueba compila con scripts\actualizacion-prueba.json, que apunta el actualizador a
-# http://127.0.0.1:8765, y deja los archivos en C:\wr\publicar\prueba-v<versión>. Para
+# http://127.0.0.1:8765, y deja los archivos en publicar\prueba-v<versión>. Para
 # servirlos: python -m http.server 8765 --directory <esa carpeta>.
 param([switch]$Prueba, [switch]$SinCompilar)
 
@@ -19,11 +19,11 @@ $tag = "v$version"
 if ($Prueba) {
     $config = "$PSScriptRoot\actualizacion-prueba.json"
     $base = "http://127.0.0.1:8765"
-    $salida = "C:\wr\publicar\prueba-$tag"
+    $salida = "$raiz\publicar\prueba-$tag"
 } else {
     $config = ""
     $base = "https://github.com/ddepolo/Wister/releases/download/$tag"
-    $salida = "C:\wr\publicar\$tag"
+    $salida = "$raiz\publicar\$tag"
 }
 
 if (-not $SinCompilar) {

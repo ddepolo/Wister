@@ -77,7 +77,7 @@ docs/fase-0.md             compilación, CLI y mediciones de modelos
 npm install                     # una vez
 .\scripts\dev.ps1               # app en modo desarrollo con Vulkan (-Cpu para solo CPU)
 .\scripts\build.ps1             # instalador NSIS en C:\wr\release\bundle\nsis\ (-Cpu para solo CPU)
-.\scripts\release.ps1           # los dos instaladores + latest.json en C:\wr\publicar\v<versión> (-Prueba)
+.\scripts\release.ps1           # los dos instaladores + latest.json en publicar\v<versión> (-Prueba)
 npm run check                   # svelte-check
 cargo fmt
 cargo clippy --all-targets -- -D warnings   # CI falla con cualquier warning
