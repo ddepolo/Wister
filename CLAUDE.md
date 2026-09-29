@@ -38,7 +38,7 @@ Principios que no se negocian:
 
 ## Estado
 
-**Versión 0.2.0**: dictado push-to-talk completo (atajo, grabación, transcripción, pegado) con VAD, overlay, ventana con barra lateral (Inicio con estadísticas, Historial en SQLite, Configuración), asistente de primer uso, actualización con un botón y dos instaladores NSIS (Vulkan y solo CPU) en GitHub Releases. El detalle está en `CHANGELOG.md`. Sin publicar: registro de funcionamiento, prueba de rendimiento de los modelos, exportar diagnóstico, micrófono desde la bandeja, volumen del micrófono, diccionario (vocabulario y reemplazos) y "Acerca de".
+**Versión 0.3.0**: dictado push-to-talk completo (atajo, grabación, transcripción, pegado) con VAD, overlay, ventana con barra lateral (Inicio con estadísticas, Historial en SQLite, Diccionario con vocabulario y reemplazos, Configuración), asistente de primer uso, micrófono y su volumen (también desde la bandeja), registro de funcionamiento, prueba de rendimiento y exportar diagnóstico, actualización con un botón y dos instaladores NSIS (Vulkan y solo CPU) en GitHub Releases. El detalle está en `CHANGELOG.md`.
 
 Cancelar un dictado con `Esc` ya funciona: cualquier otra tecla apretada mientras se graba lo cancela.
 

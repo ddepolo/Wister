@@ -9,7 +9,7 @@
 
 La transcripción la hace [Whisper](https://github.com/openai/whisper) (vía [whisper.cpp](https://github.com/ggml-org/whisper.cpp)) **en tu PC**: el audio no sale de tu computadora, no hay cuentas ni suscripción, y no hay telemetría. La red se usa solamente para bajar el modelo de voz, y solo cuando lo pedís.
 
-> **Estado: 0.2.0.** Funciona y se usa a diario, pero es una versión temprana: todavía puede cambiar bastante. Ver el [roadmap](#roadmap).
+> **Estado: 0.3.0.** Funciona y se usa a diario, pero es una versión temprana: todavía puede cambiar bastante. Ver el [roadmap](#roadmap).
 
 ## Qué hace
 

@@ -4,6 +4,10 @@ Los cambios de cada versión. El formato sigue [Keep a Changelog](https://keepac
 
 ## [Sin publicar]
 
+## [0.3.0] - 2026-09-28
+
+Diccionario personal, más control del micrófono y herramientas para diagnosticar problemas en otras PCs.
+
 ### Agregado
 
 - Registro de funcionamiento en `%LOCALAPPDATA%\ar.wister.app\logs\wister.log`: datos de la PC al arrancar, carga de cada modelo (backend y memoria), tiempos de cada dictado, micrófono usado y errores. Nunca guarda el texto dictado. Al pasar de 2 MB se empieza uno nuevo y se conserva el anterior.
@@ -72,6 +76,7 @@ Primera versión pública.
 - CLI `wister` para probar y medir modelos (`devices`, `models`, `download`, `dictate`, `transcribe`, `bench`).
 - Instalador NSIS por usuario, sin permisos de administrador.
 
-[Sin publicar]: https://github.com/ddepolo/Wister/compare/v0.2.0...HEAD
+[Sin publicar]: https://github.com/ddepolo/Wister/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/ddepolo/Wister/releases/tag/v0.3.0
 [0.2.0]: https://github.com/ddepolo/Wister/releases/tag/v0.2.0
 [0.1.0]: https://github.com/ddepolo/Wister/releases/tag/v0.1.0

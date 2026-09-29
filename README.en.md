@@ -9,7 +9,7 @@
 
 Transcription runs **on your PC** with [Whisper](https://github.com/openai/whisper) (through [whisper.cpp](https://github.com/ggml-org/whisper.cpp)). Your audio never leaves your computer: no accounts, no subscription, no telemetry. The network is only used to download the speech model, and only when you ask for it.
 
-> **Status: 0.2.0.** It works and is used daily, but it is an early release and may still change significantly.
+> **Status: 0.3.0.** It works and is used daily, but it is an early release and may still change significantly.
 
 ## Features
 

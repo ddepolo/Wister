@@ -6032,7 +6032,7 @@ dependencies = [
 
 [[package]]
 name = "wister-app"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "log",
@@ -6051,7 +6051,7 @@ dependencies = [
 
 [[package]]
 name = "wister-cli"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "clap",
@@ -6061,7 +6061,7 @@ dependencies = [
 
 [[package]]
 name = "wister-core"
-version = "0.2.0"
+version = "0.3.0"
 dependencies = [
  "anyhow",
  "cpal",
