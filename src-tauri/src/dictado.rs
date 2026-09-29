@@ -5,7 +5,7 @@
 
 use std::sync::mpsc::{Receiver, RecvTimeoutError, Sender};
 use std::sync::Mutex;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use anyhow::{bail, Context, Result};
 use serde::Serialize;
@@ -177,6 +177,8 @@ struct GrabacionRendimiento {
 struct Modelo {
     nombre: String,
     engine: stt::Engine,
+    /// Lo que tardó el calentamiento: dice si despertar la GPU es barato.
+    calentamiento: Duration,
 }
 
 struct Dictado {
@@ -196,6 +198,8 @@ struct Dictado {
     rendimiento: Option<GrabacionRendimiento>,
     /// Último micrófono anotado en el registro, para anotarlo solo cuando cambia.
     ultimo_microfono: String,
+    /// Cuándo se usó Whisper por última vez (ver `despertar_gpu`).
+    ultimo_uso: Option<Instant>,
     #[cfg(windows)]
     pegador: crate::pegar::Pegador,
 }
@@ -216,6 +220,7 @@ impl Dictado {
             prueba: None,
             rendimiento: None,
             ultimo_microfono: String::new(),
+            ultimo_uso: None,
             #[cfg(windows)]
             pegador: crate::pegar::Pegador::iniciar()?,
         })
@@ -362,12 +367,16 @@ impl Dictado {
             },
         );
         match cargar_engine(&nombre, &self.opciones(), true) {
-            Ok(engine) => {
+            Ok((engine, calentamiento)) => {
                 self.reposo = Estado::Listo {
                     modelo: nombre.clone(),
                     gpu: engine.gpu,
                 };
-                self.modelo = Some(Modelo { nombre, engine });
+                self.modelo = Some(Modelo {
+                    nombre,
+                    engine,
+                    calentamiento,
+                });
             }
             Err(e) => {
                 log::error!("{e:#}");
@@ -468,6 +477,36 @@ impl Dictado {
         if self.config.sonidos {
             sonidos::reproducir(Sonido::Inicio);
         }
+        self.despertar_gpu();
+    }
+
+    /// Si la GPU estuvo quieta, le da un trabajo corto mientras el usuario habla, para
+    /// que suba los relojes antes de transcribir: después de 30 s quieta, una RTX 5070 Ti
+    /// tardaba 2 a 3 veces más (60 → 180–270 ms), y despertándola, lo mismo que en uso.
+    /// Se hace acá y no al apretar el atajo: a los 300 ms ya se sabe que no es un atajo
+    /// común. Solo si es barato: en una GPU lenta el trabajo mismo demoraría el dictado.
+    fn despertar_gpu(&mut self) {
+        const QUIETA: Duration = Duration::from_secs(5);
+        const BARATO: Duration = Duration::from_millis(300);
+        if self.ultimo_uso.is_some_and(|u| u.elapsed() < QUIETA) {
+            return;
+        }
+        let opciones = stt::Options {
+            initial_prompt: None,
+            ..self.opciones()
+        };
+        let Some(modelo) = self
+            .modelo
+            .as_mut()
+            .filter(|m| m.engine.gpu && m.calentamiento < BARATO)
+        else {
+            return;
+        };
+        match modelo.engine.transcribe(&silencio(), &opciones) {
+            Ok(t) => log::info!("GPU despertada en {} ms", t.elapsed.as_millis()),
+            Err(e) => log::warn!("no se pudo despertar la GPU: {e:#}"),
+        }
+        self.ultimo_uso = Some(Instant::now());
     }
 
     /// Abre el micrófono de la configuración y manda el nivel a `ventana` por `evento`.
@@ -531,11 +570,19 @@ impl Dictado {
             a16k = voz;
         }
         let remuestreo = soltado.elapsed();
+        let quieta = self.ultimo_uso.map(|u| u.elapsed().as_secs());
         let transcript = modelo.engine.transcribe(&a16k, &opciones)?;
+        self.ultimo_uso = Some(Instant::now());
+        // Cuánto estuvo quieta antes: sirve para ver si la GPU tarda más después de un rato.
         log::info!(
-            "remuestreo y VAD {} ms + whisper {} ms",
+            "remuestreo y VAD {} ms + whisper {} ms ({:.1} s de voz, {})",
             remuestreo.as_millis(),
-            transcript.elapsed.as_millis()
+            transcript.elapsed.as_millis(),
+            a16k.duration_secs(),
+            match quieta {
+                Some(s) => format!("{s} s sin usar Whisper"),
+                None => "primer dictado".into(),
+            }
         );
         if transcript.text.is_empty() {
             return Ok(Some(Resultado::Descartado {
@@ -594,8 +641,13 @@ fn ventana_activa() -> Option<String> {
     None
 }
 
-/// Carga un modelo y lo "calienta". Con `gpu` en `false` usa la CPU aunque haya GPU.
-pub fn cargar_engine(nombre: &str, opciones: &stt::Options, gpu: bool) -> Result<stt::Engine> {
+/// Carga un modelo y lo "calienta"; devuelve también lo que tardó el calentamiento.
+/// Con `gpu` en `false` usa la CPU aunque haya GPU.
+pub fn cargar_engine(
+    nombre: &str,
+    opciones: &stt::Options,
+    gpu: bool,
+) -> Result<(stt::Engine, Duration)> {
     let modelo = models::find(nombre)?;
     if !modelo.is_downloaded() {
         bail!("falta el modelo {nombre}: descargalo en Configuración");
@@ -605,18 +657,25 @@ pub fn cargar_engine(nombre: &str, opciones: &stt::Options, gpu: bool) -> Result
 
     // La primera transcripción es lenta (con Vulkan se compilan los shaders: ~7 s en
     // una RTX 5070 Ti). Se hace una de prueba ahora para que no la pague el primer dictado.
-    let silencio = Audio {
-        samples: vec![0.0; audio::WHISPER_SAMPLE_RATE as usize],
-        sample_rate: audio::WHISPER_SAMPLE_RATE,
-    };
-    let calentamiento = engine.transcribe(&silencio, opciones)?;
+    let primera = engine.transcribe(&silencio(), opciones)?;
+    // La segunda dice lo que cuesta un trabajo corto ya con todo compilado.
+    let calentamiento = engine.transcribe(&silencio(), opciones)?.elapsed;
     log::info!(
-        "modelo {nombre} cargado en {} ms ({}), calentamiento {} ms",
+        "modelo {nombre} cargado en {} ms ({}), calentamiento {} ms y {} ms",
         engine.load_time.as_millis(),
         if engine.gpu { "GPU" } else { "CPU" },
-        calentamiento.elapsed.as_millis()
+        primera.elapsed.as_millis(),
+        calentamiento.as_millis()
     );
-    Ok(engine)
+    Ok((engine, calentamiento))
+}
+
+/// 1 s de silencio a 16 kHz, para calentar y despertar al modelo.
+fn silencio() -> Audio {
+    Audio {
+        samples: vec![0.0; audio::WHISPER_SAMPLE_RATE as usize],
+        sample_rate: audio::WHISPER_SAMPLE_RATE,
+    }
 }
 
 /// Anota el resultado de un dictado en el registro, sin el texto.

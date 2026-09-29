@@ -76,6 +76,17 @@ enum Command {
         /// Fuerza CPU aunque el binario tenga soporte de GPU.
         #[arg(long)]
         cpu: bool,
+        /// Ventana de Whisper ajustada al largo del audio (experimental).
+        #[arg(long)]
+        ventana_ajustada: bool,
+        /// Segundos de espera antes de cada medición, para ver si la GPU tarda más
+        /// después de estar quieta (como entre dictados).
+        #[arg(long, default_value_t = 0)]
+        pausa: u64,
+        /// Después de cada pausa, despierta la GPU como la app (1 s de silencio) y
+        /// espera 1,5 s, lo que se tarda en hablar, antes de medir.
+        #[arg(long)]
+        despertar: bool,
     },
 }
 
@@ -98,6 +109,9 @@ struct SttArgs {
     /// Transcribe solo los tramos con voz (Silero VAD), como la app.
     #[arg(long)]
     vad: bool,
+    /// Ventana de Whisper ajustada al largo del audio (experimental).
+    #[arg(long)]
+    ventana_ajustada: bool,
 }
 
 impl SttArgs {
@@ -106,6 +120,7 @@ impl SttArgs {
             language: self.lang.clone(),
             initial_prompt: self.prompt.clone(),
             threads: self.threads.unwrap_or_else(stt::default_threads),
+            fit_audio_ctx: self.ventana_ajustada,
         }
     }
 
@@ -162,13 +177,25 @@ fn main() -> Result<()> {
             lang,
             threads,
             cpu,
+            ventana_ajustada,
+            pausa,
+            despertar,
         } => {
             let opts = Options {
                 language: lang,
                 initial_prompt: None,
                 threads: threads.unwrap_or_else(stt::default_threads),
+                fit_audio_ctx: ventana_ajustada,
             };
-            bench(models, file, runs.max(1), &rec, &opts, !cpu)
+            bench(
+                models,
+                file,
+                runs.max(1),
+                &rec,
+                &opts,
+                !cpu,
+                (pausa, despertar),
+            )
         }
     }
 }
@@ -358,6 +385,7 @@ fn bench(
     rec: &RecordArgs,
     opts: &Options,
     use_gpu: bool,
+    (pausa, despertar): (u64, bool),
 ) -> Result<()> {
     let names: Vec<String> = if names.is_empty() {
         CATALOG
@@ -402,8 +430,27 @@ fn bench(
         // La primera pasada reserva buffers y, en GPU, compila kernels: no se cuenta.
         let warmup = engine.transcribe(&audio, opts)?;
         let mut times = Vec::with_capacity(runs);
-        for _ in 0..runs {
-            times.push(engine.transcribe(&audio, opts)?.elapsed);
+        for i in 0..runs {
+            if pausa > 0 {
+                std::thread::sleep(Duration::from_secs(pausa));
+            }
+            if despertar {
+                let silencio = Audio {
+                    samples: vec![0.0; audio::WHISPER_SAMPLE_RATE as usize],
+                    sample_rate: audio::WHISPER_SAMPLE_RATE,
+                };
+                engine.transcribe(&silencio, opts)?;
+                std::thread::sleep(Duration::from_millis(1500));
+            }
+            let t = engine.transcribe(&audio, opts)?.elapsed;
+            if pausa > 0 {
+                eprintln!(
+                    "  medición {} después de {pausa} s quieta: {}",
+                    i + 1,
+                    ms(t)
+                );
+            }
+            times.push(t);
         }
         let avg = times.iter().sum::<Duration>() / runs as u32;
         let min = *times.iter().min().unwrap();

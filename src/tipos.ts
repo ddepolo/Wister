@@ -111,6 +111,10 @@ export type Medicion = {
   transcripcion_ms: number;
   aciertos: number;
   texto: string;
+  /** Lo mismo con la ventana ajustada al largo del audio. */
+  ajustada_ms: number;
+  ajustada_aciertos: number;
+  ajustada_texto: string;
   error: string | null;
 };
 

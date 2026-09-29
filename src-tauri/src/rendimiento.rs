@@ -96,6 +96,10 @@ pub struct Medicion {
     /// Porcentaje de palabras de la frase que se transcribieron bien.
     pub aciertos: u32,
     pub texto: String,
+    /// Lo mismo con la ventana ajustada al largo del audio (experimental).
+    pub ajustada_ms: u64,
+    pub ajustada_aciertos: u32,
+    pub ajustada_texto: String,
     pub error: Option<String>,
 }
 
@@ -128,12 +132,16 @@ pub fn medir(voz: &Audio, frase: &str, idioma: &str, emitir: impl Fn(Evento)) ->
         let m = medir_uno(modelo, gpu, voz, frase, &opciones);
         match &m.error {
             None => log::info!(
-                "rendimiento: {modelo} con {}: carga {} ms, transcripción {} ms, {}% de aciertos: {:?}",
+                "rendimiento: {modelo} con {}: carga {} ms, transcripción {} ms, {}% de aciertos: {:?}; \
+                 con la ventana ajustada {} ms, {}% de aciertos: {:?}",
                 if gpu { "GPU" } else { "CPU" },
                 m.carga_ms,
                 m.transcripcion_ms,
                 m.aciertos,
-                m.texto
+                m.texto,
+                m.ajustada_ms,
+                m.ajustada_aciertos,
+                m.ajustada_texto
             ),
             Some(e) => log::warn!("rendimiento: {modelo} (gpu: {gpu}) falló: {e}"),
         }
@@ -151,18 +159,34 @@ fn medir_uno(
     opciones: &stt::Options,
 ) -> Medicion {
     let inicio = Instant::now();
-    let resultado = cargar_engine(modelo, opciones, gpu).and_then(|mut engine| {
+    let ajustada = stt::Options {
+        fit_audio_ctx: true,
+        ..opciones.clone()
+    };
+    let resultado = cargar_engine(modelo, opciones, gpu).and_then(|(mut engine, _)| {
         let carga_ms = inicio.elapsed().as_millis() as u64;
-        Ok((carga_ms, engine.transcribe(voz, opciones)?))
+        let completa = engine.transcribe(voz, opciones)?;
+        // Con la ventana ajustada, la primera vez con un tamaño nuevo la GPU puede
+        // compilar shaders: se anota y se mide la segunda, que es lo que se espera
+        // en el uso normal.
+        let primera = engine.transcribe(voz, &ajustada)?;
+        log::info!(
+            "rendimiento: {modelo} (gpu: {gpu}), primera con la ventana ajustada: {} ms",
+            primera.elapsed.as_millis()
+        );
+        Ok((carga_ms, completa, engine.transcribe(voz, &ajustada)?))
     });
     match resultado {
-        Ok((carga_ms, t)) => Medicion {
+        Ok((carga_ms, t, a)) => Medicion {
             modelo: modelo.into(),
             gpu,
             carga_ms,
             transcripcion_ms: t.elapsed.as_millis() as u64,
             aciertos: aciertos(frase, &t.text),
             texto: t.text,
+            ajustada_ms: a.elapsed.as_millis() as u64,
+            ajustada_aciertos: aciertos(frase, &a.text),
+            ajustada_texto: a.text,
             error: None,
         },
         Err(e) => Medicion {
@@ -172,6 +196,9 @@ fn medir_uno(
             transcripcion_ms: 0,
             aciertos: 0,
             texto: String::new(),
+            ajustada_ms: 0,
+            ajustada_aciertos: 0,
+            ajustada_texto: String::new(),
             error: Some(format!("{e:#}")),
         },
     }
@@ -238,6 +265,9 @@ mod tests {
             transcripcion_ms: ms,
             aciertos: 100,
             texto: String::new(),
+            ajustada_ms: ms,
+            ajustada_aciertos: 100,
+            ajustada_texto: String::new(),
             error: None,
         }
     }
