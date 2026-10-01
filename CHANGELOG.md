@@ -4,6 +4,11 @@ Los cambios de cada versión. El formato sigue [Keep a Changelog](https://keepac
 
 ## [Sin publicar]
 
+### Agregado
+
+- Configuración → Apariencia: tema **Automático** (como Windows), **Claro** u **Oscuro**. Cambia también la barra de título.
+- **Aviso de versión nueva**: al minuto de abrir Wister y después una vez por día le pregunta a GitHub cuál es la última versión (sin mandar ningún dato tuyo). Si hay una nueva aparece un cartel en Inicio con "Actualizar ahora" y "Ahora no". Se apaga en Configuración → Acerca de y también se puede elegir en el asistente de primer uso.
+
 ## [0.4.0] - 2026-10-01
 
 Un solo instalador para todas las PCs, con o sin placa de video, y varias comodidades para dictar.

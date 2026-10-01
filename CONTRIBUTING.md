@@ -9,7 +9,7 @@
 Antes de proponer una función, tené en cuenta lo que Wister no negocia:
 
 - **Todo local**: el audio y el texto no salen de la PC.
-- **Red solo a pedido**: la app no se conecta a internet salvo cuando el usuario pide algo explícitamente (hoy, bajar un modelo).
+- **Red mínima**: la app solo se conecta para bajar un modelo cuando el usuario lo pide y, si no se apagó, para ver si hay una versión nueva (pide `latest.json` a GitHub, sin mandar datos). Nada más.
 - **Sin telemetría**, sin cuentas y sin suscripciones.
 - **Liviano**: nada de runtimes pesados ni servicios en segundo plano innecesarios.
 

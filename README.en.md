@@ -7,7 +7,7 @@
 
 **Local, free and open-source voice dictation for Windows.** Hold a hotkey, speak, release, and the text is pasted wherever your cursor is: browser, editor, chat or terminal.
 
-Transcription runs **on your PC** with [Whisper](https://github.com/openai/whisper) (through [whisper.cpp](https://github.com/ggml-org/whisper.cpp)). Your audio never leaves your computer: no accounts, no subscription, no telemetry. The network is only used to download the speech model, and only when you ask for it.
+Transcription runs **on your PC** with [Whisper](https://github.com/openai/whisper) (through [whisper.cpp](https://github.com/ggml-org/whisper.cpp)). Your audio never leaves your computer: no accounts, no subscription, no telemetry. The network is only used to download the speech model when you ask for it, and to check for new versions (which can be turned off).
 
 > **Status: 0.4.0.** It works and is used daily, but it is an early release and may still change significantly.
 
@@ -32,7 +32,7 @@ Wister transcribes any language Whisper supports (the UI offers Spanish, English
 
 ## Download
 
-Get the installer from the [latest release](https://github.com/ddepolo/Wister/releases/latest): `Wister_<version>_x64-setup.exe`. It uses the GPU through Vulkan and falls back to the CPU when there is no GPU or no video drivers; **Configuración → Usar la placa de video** switches to the CPU by hand. The installer is not signed yet, so SmartScreen will warn about an unknown publisher: **More info → Run anyway**. Updates are installed from **Configuración → Buscar actualizaciones** (the app never checks on its own).
+Get the installer from the [latest release](https://github.com/ddepolo/Wister/releases/latest): `Wister_<version>_x64-setup.exe`. It uses the GPU through Vulkan and falls back to the CPU when there is no GPU or no video drivers; **Configuración → Usar la placa de video** switches to the CPU by hand. The installer is not signed yet, so SmartScreen will warn about an unknown publisher: **More info → Run anyway**. Wister checks GitHub for a new version when it starts and once a day (it only downloads `latest.json` and sends no data) and shows a banner on the home screen; installing is always up to you. The check can be turned off in **Configuración → Acerca de**.
 
 ## Building
 

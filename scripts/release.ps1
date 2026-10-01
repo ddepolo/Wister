@@ -9,16 +9,31 @@
 #   .\scripts\release.ps1                # deja todo en publicar\v<versión> (en el proyecto)
 #   .\scripts\release.ps1 -Prueba        # para probar el actualizador en esta PC
 #   .\scripts\release.ps1 -SinCompilar   # reusa el instalador ya compilado
+#   .\scripts\release.ps1 -Beta          # versión con sufijo (0.5.0-beta.1), como pre-release
 #
 # -Prueba compila con scripts\actualizacion-prueba.json, que apunta el actualizador a
 # http://127.0.0.1:8765, y deja los archivos en publicar\prueba-v<versión>. Para
 # servirlos: python -m http.server 8765 --directory <esa carpeta>.
-param([switch]$Prueba, [switch]$SinCompilar)
+#
+# -Beta toma las notas de "Sin publicar" del CHANGELOG. La beta se publica como
+# pre-release: GitHub no la cuenta como la última versión, y el actualizador (que lee
+# releases/latest/download/latest.json) no se la ofrece a nadie. Al final se muestra el
+# comando para publicar, con o sin --prerelease según corresponda.
+param([switch]$Prueba, [switch]$SinCompilar, [switch]$Beta)
 
 $ErrorActionPreference = "Stop"
 $raiz = Split-Path $PSScriptRoot
 $version = (Select-String -Path "$raiz\Cargo.toml" -Pattern '^version = "(.+)"').Matches[0].Groups[1].Value
 $tag = "v$version"
+
+# Una versión con sufijo publicada como normal le llegaría a todos por el actualizador.
+$conSufijo = $version.Contains("-")
+if ($conSufijo -and -not $Beta -and -not $Prueba) {
+    throw "La versión $version tiene sufijo: es una beta, corré el script con -Beta."
+}
+if ($Beta -and -not $conSufijo) {
+    throw "Con -Beta la versión tiene que llevar sufijo (por ejemplo 0.5.0-beta.1); ahora es $version."
+}
 
 if ($Prueba) {
     $config = "$PSScriptRoot\actualizacion-prueba.json"
@@ -38,8 +53,12 @@ if (-not $SinCompilar) {
 # o hasta los links del final).
 $changelog = (Get-Content "$raiz\CHANGELOG.md" -Raw -Encoding UTF8) -replace "`r", ""
 $seccion = [regex]::Match($changelog, "(?ms)^## \[$([regex]::Escape($version))\][^\n]*\n(.*?)(?=^## \[|^\[)")
+$sinPublicar = [regex]::Match($changelog, "(?ms)^## \[Sin publicar\][^\n]*\n(.*?)(?=^## \[|^\[)")
 if ($seccion.Success) {
     $notas = $seccion.Groups[1].Value.Trim()
+} elseif ($Beta -and $sinPublicar.Success -and $sinPublicar.Groups[1].Value.Trim()) {
+    $notas = "**Versión beta**, para probar lo que viene en la próxima versión. No llega por " +
+        "las actualizaciones automáticas: se instala a mano.`n`n" + $sinPublicar.Groups[1].Value.Trim()
 } elseif ($Prueba) {
     $notas = "Versión de prueba del actualizador."
 } else {
@@ -81,3 +100,11 @@ $sumas = Get-ChildItem $salida -Filter *.exe | Sort-Object Name | ForEach-Object
 Write-Host ""
 Write-Host "Listo: $salida"
 Get-ChildItem $salida | ForEach-Object { Write-Host ("  {0,-40} {1,8:N1} MB" -f $_.Name, ($_.Length / 1MB)) }
+
+if (-not $Prueba) {
+    $pre = if ($Beta) { " --prerelease" } else { "" }
+    Write-Host ""
+    Write-Host "Para publicar (después de pushear el commit y el tag $tag):"
+    Write-Host "  cd $salida"
+    Write-Host "  gh release create $tag --title `"Wister $version`"$pre --notes-file notas.md $nombre latest.json SHA256SUMS.txt"
+}

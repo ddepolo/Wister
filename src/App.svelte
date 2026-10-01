@@ -38,6 +38,10 @@
   // Cambios que no vienen de esta ventana, como elegir el micrófono desde la bandeja.
   listen<Config>("config", ({ payload }) => (config = payload));
 
+  $effect(() => {
+    document.documentElement.dataset.tema = config?.tema ?? "automatico";
+  });
+
   /** Guarda la configuración; si falla, tira el error para que lo muestre quien llamó. */
   async function cambiar(cambios: Partial<Config>) {
     if (!config) return;

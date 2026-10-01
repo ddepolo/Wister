@@ -7,7 +7,7 @@
 
 **Dictado por voz local, libre y gratuito para Windows.** Mantenés apretado un atajo, hablás, soltás, y el texto aparece donde tengas el cursor: en el navegador, el editor, el chat o la terminal.
 
-La transcripción la hace [Whisper](https://github.com/openai/whisper) (vía [whisper.cpp](https://github.com/ggml-org/whisper.cpp)) **en tu PC**: el audio no sale de tu computadora, no hay cuentas ni suscripción, y no hay telemetría. La red se usa solamente para bajar el modelo de voz, y solo cuando lo pedís.
+La transcripción la hace [Whisper](https://github.com/openai/whisper) (vía [whisper.cpp](https://github.com/ggml-org/whisper.cpp)) **en tu PC**: el audio no sale de tu computadora, no hay cuentas ni suscripción, y no hay telemetría. La red se usa solamente para bajar el modelo de voz, cuando lo pedís, y para ver si hay una versión nueva (se puede apagar).
 
 > **Estado: 0.4.0.** Funciona y se usa a diario, pero es una versión temprana: todavía puede cambiar bastante. Ver el [roadmap](#roadmap).
 
@@ -24,7 +24,7 @@ La transcripción la hace [Whisper](https://github.com/openai/whisper) (vía [wh
 - **Configurable**: modelo, micrófono (también desde la bandeja), su volumen, idioma, atajo, sonidos al grabar y arranque con Windows.
 - **Diccionario personal**: palabras que Whisper tiene que conocer (nombres, marcas, jerga) y reemplazos que se aplican siempre, como "punto y aparte" → salto de línea o sacar muletillas.
 - **Diagnóstico**: una prueba de rendimiento te dice qué modelo anda mejor en tu PC, y "Exportar diagnóstico" arma un archivo de texto para pedir ayuda (sin nada de lo que dictaste).
-- **Se actualiza con un botón**: "Buscar actualizaciones" baja la versión nueva, verifica su firma y la instala. No se conecta sola.
+- **Se actualiza con un botón**: Wister te avisa en Inicio cuando hay una versión nueva, y "Actualizar ahora" la baja, verifica su firma y la instala. El aviso se puede apagar.
 - **No inventa texto**: un detector de voz (Silero VAD) deja pasar solo lo que dijiste y recorta los silencios. Si solo hubo ruido, no transcribe nada (Whisper suele "escuchar" un "Gracias." en grabaciones vacías).
 
 ## Requisitos
@@ -75,7 +75,7 @@ Los modelos se guardan en `%LOCALAPPDATA%\Wister\data\models`.
 
 - El audio se procesa en memoria y no se guarda en disco.
 - No hay telemetría, analíticas ni reportes automáticos de errores.
-- La única conexión a internet es la descarga de modelos, cuando la pedís.
+- Se conecta a internet solo para bajar modelos, cuando lo pedís, y para ver si hay una versión nueva: al abrir Wister y una vez por día le pide a GitHub el archivo `latest.json`, sin mandar ningún dato tuyo. Esto último se apaga en Configuración → Acerca de.
 - La configuración se guarda en `%APPDATA%\ar.wister.app\config.json`.
 - El historial de dictados (el texto, no el audio) se guarda en `%APPDATA%\ar.wister.app\historial.db`, y solo si la opción está activada. "Borrar todo" lo elimina del archivo.
 - Un registro de funcionamiento (tiempos, errores y datos de la PC, nunca el texto dictado) se guarda en `%LOCALAPPDATA%\ar.wister.app\logs\wister.log`. Solo sale de tu PC si exportás el diagnóstico y lo compartís.

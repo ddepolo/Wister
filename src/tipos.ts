@@ -61,7 +61,12 @@ export type Config = {
   /** Sacar el punto que Whisper pone al final. */
   sin_punto_final: boolean;
   usar_gpu: boolean;
+  tema: Tema;
+  /** Ver en GitHub si hay una versión nueva al abrir Wister y una vez por día. */
+  buscar_actualizaciones: boolean;
 };
+
+export type Tema = "automatico" | "claro" | "oscuro";
 
 export type Reemplazo = { buscar: string; reemplazar: string };
 

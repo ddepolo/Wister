@@ -12,6 +12,7 @@
     type EstadoGpu,
     type Microfono,
     type Modelo,
+    type Tema,
     type Volumen,
   } from "./tipos";
 
@@ -57,6 +58,14 @@
     getVersion().then((v) => (version = v));
     invoke<boolean>("autoarranque").then((a) => (autoarranque = a));
     invoke<EstadoGpu>("estado_gpu").then((g) => (gpu = g));
+    // Si la búsqueda automática ya encontró una versión nueva, se muestra acá también.
+    invoke<{ version: string; notas: string | null } | null>("actualizacion_pendiente").then(
+      (nueva) => {
+        if (nueva && actualizacion.tipo === "inactiva") {
+          actualizacion = { tipo: "disponible", ...nueva };
+        }
+      },
+    );
     refrescar();
     // Al volver a la ventana se releen los micrófonos: puede que se haya enchufado uno.
     window.addEventListener("focus", refrescar);
@@ -423,6 +432,22 @@
 </section>
 
 <section class="tarjeta">
+  <h2>Apariencia</h2>
+  <div class="fila">
+    <label for="tema">Tema</label>
+    <select
+      id="tema"
+      value={config.tema}
+      onchange={(e) => aplicar({ tema: e.currentTarget.value as Tema })}
+    >
+      <option value="automatico">Automático (como Windows)</option>
+      <option value="claro">Claro</option>
+      <option value="oscuro">Oscuro</option>
+    </select>
+  </div>
+</section>
+
+<section class="tarjeta">
   <h2>Historial</h2>
   <label class="casilla">
     <input
@@ -510,9 +535,19 @@
     </div>
   {/if}
 
+  <label class="casilla">
+    <input
+      type="checkbox"
+      checked={config.buscar_actualizaciones}
+      onchange={(e) => aplicar({ buscar_actualizaciones: e.currentTarget.checked })}
+    />
+    Buscar actualizaciones automáticamente
+  </label>
   <p class="muted">
-    Solo se conecta a GitHub cuando tocás el botón. Cada versión viene firmada y se verifica
-    antes de instalarla.
+    {config.buscar_actualizaciones
+      ? "Al abrir Wister y una vez por día le pregunta a GitHub cuál es la última versión, sin mandar ningún dato tuyo; si hay una nueva, te avisa en Inicio."
+      : "Solo se conecta a GitHub cuando tocás el botón."}
+    Cada versión viene firmada y se verifica antes de instalarla.
   </p>
   <button class="enlace" onclick={() => aplicar({ asistente_completo: false })}>
     Volver a ejecutar el asistente

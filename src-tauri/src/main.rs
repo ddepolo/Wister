@@ -38,6 +38,7 @@ fn main() {
         .manage(dictado::UltimoDictado::default())
         .manage(config::Descargas::default())
         .manage(historial::Historial::default())
+        .manage(actualizar::Pendiente::default())
         .invoke_handler(tauri::generate_handler![
             dictado::estado_actual,
             config::obtener_config,
@@ -60,6 +61,7 @@ fn main() {
             diccionario::comandos_de_voz,
             actualizar::buscar_actualizacion,
             actualizar::instalar_actualizacion,
+            actualizar::actualizacion_pendiente,
             diagnostico::exportar_diagnostico,
             rendimiento::iniciar_prueba_rendimiento,
             rendimiento::medir_prueba_rendimiento,
@@ -80,6 +82,7 @@ fn main() {
             bandeja::crear(app.handle())?;
             overlay::preparar(app.handle())?;
             iniciar_dictado(app.handle())?;
+            actualizar::buscar_periodicamente(app.handle().clone());
             Ok(())
         })
         .on_window_event(|window, event| {
@@ -130,6 +133,7 @@ fn reiniciar(app: AppHandle) {
 
 fn iniciar_dictado(app: &AppHandle) -> anyhow::Result<()> {
     let config = config::cargar(app);
+    config::aplicar_tema(app, config.tema);
     app.manage(config::ConfigActual(std::sync::Mutex::new(config.clone())));
     if !config.asistente_completo {
         bandeja::mostrar_config(app);

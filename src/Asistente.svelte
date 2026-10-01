@@ -220,6 +220,18 @@
         <input type="checkbox" bind:checked={autoarranque} />
         Iniciar Wister con Windows
       </label>
+      <label class="casilla">
+        <input
+          type="checkbox"
+          checked={actual.buscar_actualizaciones}
+          onchange={(e) => (actual = { ...actual, buscar_actualizaciones: e.currentTarget.checked })}
+        />
+        Avisarme cuando haya una versión nueva
+      </label>
+      <p class="nota">
+        Una vez por día le pregunta a GitHub cuál es la última versión, sin mandar nada tuyo. Lo
+        que dictás nunca sale de tu PC.
+      </p>
     {/if}
     {#if error}<p class="error">{error}</p>{/if}
   </div>

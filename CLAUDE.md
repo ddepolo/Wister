@@ -9,7 +9,7 @@ Dictado por voz **libre y local** para **Windows**: mantenés apretado un atajo 
 Principios que no se negocian:
 
 - **Todo local**: el audio y el texto no salen de la PC.
-- **Red solo a pedido**: hoy, únicamente para bajar modelos cuando el usuario lo pide.
+- **Red mínima y sin datos del usuario**: bajar modelos cuando el usuario lo pide y, si "Buscar actualizaciones automáticamente" está prendida (lo está por defecto), pedir `latest.json` a GitHub al abrir y una vez por día. Nada más, y nunca se manda nada del usuario.
 - **Licencia GPL-3.0-or-later** (`LICENSE`): cualquier derivado tiene que seguir siendo libre.
 
 ## Convenciones
@@ -35,6 +35,7 @@ Principios que no se negocian:
 | Overlay | Ventana Tauri transparente con `WS_EX_NOACTIVATE`, mostrada con `ShowWindow` nativo | No puede robarle el foco a la app destino |
 | Verificación de modelos | **SHA-1** publicado en `models/README.md` de whisper.cpp | Es el hash oficial que existe; no inventar otros |
 | Ventana del codificador | **30 s completos** (sin `audio_ctx`) | Achicarla al largo del audio era 2,4–3,2× más rápido en CPU, pero con `turbo` escribía cualquier cosa y en GPU compilaba shaders por tamaño. Descartado |
+| Actualizaciones | Aviso automático (al abrir y cada 24 h), **prendido por defecto** y apagable; instalar lo decide siempre el usuario | Sin aviso, casi nadie se enteraría de las versiones nuevas. Solo se pide `latest.json`. Las betas se publican como pre-release para que el actualizador no las ofrezca |
 | Sampling | Greedy (`best_of: 1`) | Para dictado alcanza y es bastante más rápido que beam search |
 | Modelos | `base`, `small`, `large-v3-turbo-q5_0`, `large-v3-turbo`; **sin `tiny`** | `tiny` transcribe muy mal en español. Recomendado: `turbo-q5_0` con GPU, `small` sin GPU |
 
@@ -46,10 +47,11 @@ Cancelar un dictado con `Esc` ya funciona: cualquier otra tecla apretada mientra
 
 Pendiente para la 0.5.0, en orden aproximado de prioridad:
 
-1. **Tema claro / oscuro / automático** en Configuración (hoy sigue el modo de apps de Windows).
-2. **Idioma en la bandeja**, como el micrófono.
-3. **Modo manos libres**: tocar el atajo para empezar y otra vez para terminar. Toca `hotkey::Detector`, que es delicado.
-4. **Instaladores compilados en GitHub Actions y firmados** con SignPath Foundation (gratis para proyectos libres; firma solo lo compilado en CI). Arrancar la postulación temprano, porque tarda.
+Hecho sin publicar (ver `CHANGELOG.md`): tema claro/oscuro/automático y aviso de versión nueva; salen primero en la `0.5.0-beta.1`.
+
+1. **Idioma en la bandeja**, como el micrófono.
+2. **Modo manos libres**: tocar el atajo para empezar y otra vez para terminar. Toca `hotkey::Detector`, que es delicado.
+3. **Instaladores compilados en GitHub Actions y firmados** con SignPath Foundation (gratis para proyectos libres; firma solo lo compilado en CI). Arrancar la postulación temprano, porque tarda.
 
 Más adelante: post-procesado con un LLM local, estilos por app, macOS y Linux.
 
@@ -73,7 +75,7 @@ docs/fase-0.md             compilación, CLI y mediciones de modelos
 npm install                     # una vez
 .\scripts\dev.ps1               # app en modo desarrollo con Vulkan (-Cpu para solo CPU)
 .\scripts\build.ps1             # instalador NSIS en C:\wr\release\bundle\nsis\ (-Cpu para solo CPU, para probar)
-.\scripts\release.ps1           # el instalador + latest.json en publicar\v<versión> (-Prueba)
+.\scripts\release.ps1           # el instalador + latest.json en publicar\v<versión> (-Prueba, -Beta)
 npm run check                   # svelte-check
 cargo fmt
 cargo clippy --all-targets -- -D warnings   # CI falla con cualquier warning

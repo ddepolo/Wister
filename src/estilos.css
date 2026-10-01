@@ -14,8 +14,15 @@
   --verde: #16a34a;
 }
 
+/* El tema elegido en Configuración va en `data-tema` (ver App.svelte). Con "automático"
+   sigue al sistema; los colores oscuros se repiten porque CSS no deja compartirlos entre
+   la media query y el atributo. */
+:root[data-tema="claro"] {
+  color-scheme: light;
+}
+
 @media (prefers-color-scheme: dark) {
-  :root {
+  :root:not([data-tema="claro"]) {
     --fondo: #1e1e20;
     --lateral: #17171a;
     --superficie: #27272b;
@@ -23,6 +30,16 @@
     --acento: #818cf8;
     --verde: #4ade80;
   }
+}
+
+:root[data-tema="oscuro"] {
+  color-scheme: dark;
+  --fondo: #1e1e20;
+  --lateral: #17171a;
+  --superficie: #27272b;
+  --texto: #ececf1;
+  --acento: #818cf8;
+  --verde: #4ade80;
 }
 
 body {

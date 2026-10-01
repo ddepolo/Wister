@@ -43,6 +43,19 @@ pub struct Config {
     pub sin_punto_final: bool,
     /// Transcribir con la placa de video si hay una compatible (si no, con el procesador).
     pub usar_gpu: bool,
+    pub tema: Tema,
+    /// Ver en GitHub si hay una versión nueva al abrir Wister y una vez por día.
+    pub buscar_actualizaciones: bool,
+}
+
+/// Colores de la ventana. `Automatico` sigue el modo de las apps de Windows.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum Tema {
+    #[default]
+    Automatico,
+    Claro,
+    Oscuro,
 }
 
 impl Default for Config {
@@ -60,6 +73,8 @@ impl Default for Config {
             reemplazos: Vec::new(),
             sin_punto_final: false,
             usar_gpu: true,
+            tema: Tema::Automatico,
+            buscar_actualizaciones: true,
         }
     }
 }
@@ -120,6 +135,19 @@ pub fn guardar(app: &AppHandle, config: &Config) -> Result<()> {
         .with_context(|| format!("no se pudo guardar {}", p.display()))
 }
 
+/// El tema de la barra de título. La página lo sigue sola: Tauri le pasa el tema de la
+/// ventana a WebView2, y `prefers-color-scheme` cambia con él.
+pub fn aplicar_tema(app: &AppHandle, tema: Tema) {
+    let tema = match tema {
+        Tema::Automatico => None,
+        Tema::Claro => Some(tauri::Theme::Light),
+        Tema::Oscuro => Some(tauri::Theme::Dark),
+    };
+    if let Some(ventana) = app.get_webview_window("config") {
+        let _ = ventana.set_theme(tema);
+    }
+}
+
 /// La configuración vigente, compartida entre los comandos.
 ///
 /// Se registra en el `setup`, pero Tauri crea las ventanas de `tauri.conf.json` antes:
@@ -140,6 +168,7 @@ pub fn guardar_config(app: AppHandle, config: Config) -> Result<(), String> {
         return Err("ese atajo no se puede usar: elegí Ctrl, Shift, Alt o teclas F".into());
     }
     guardar(&app, &config).map_err(|e| format!("{e:#}"))?;
+    aplicar_tema(&app, config.tema);
     #[cfg(windows)]
     hotkey::cambiar_teclas(&config.atajo);
     // Si Wister todavía está arrancando, el hilo de dictado va a leer el archivo recién guardado.
@@ -374,6 +403,8 @@ mod tests {
         assert!(c.reemplazos.is_empty());
         assert!(!c.sin_punto_final);
         assert!(c.usar_gpu);
+        assert_eq!(c.tema, Tema::Automatico);
+        assert!(c.buscar_actualizaciones);
     }
 
     #[test]
@@ -417,6 +448,8 @@ mod tests {
             }],
             sin_punto_final: true,
             usar_gpu: false,
+            tema: Tema::Oscuro,
+            buscar_actualizaciones: false,
         };
         let texto = serde_json::to_string(&c).unwrap();
         assert_eq!(serde_json::from_str::<Config>(&texto).unwrap(), c);

@@ -212,7 +212,7 @@ Si un dictado va a la misma ventana que el anterior antes de 60 s, se le antepon
 - Cada modelo tiene una estimación de la memoria que ocupa cargado (`memory_mb`). Si pasa de un cuarto de la RAM, la UI avisa antes de descargarlo y el recomendado baja al mejor que entre. Para probarlo en una PC con mucha RAM, `WISTER_RAM_MB` simula otra cantidad.
 - Descarga reanudable (`.part` + header `Range`) desde Hugging Face, sin timeout, y verificación del hash al terminar.
 - `tiny` no está: en español transcribe demasiado mal.
-- Es el único código que usa la red.
+- Junto con las actualizaciones (`actualizar.rs`), es el único código que usa la red.
 
 ## Compilación en Windows
 
@@ -226,11 +226,14 @@ Dos trampas que resuelven `scripts/dev.ps1` y `scripts/build.ps1`:
 
 1. Subir la versión en `Cargo.toml` y `package.json`, y pasar lo de "Sin publicar" del `CHANGELOG.md` a su sección.
 2. `.\scripts\release.ps1`: compila el instalador y deja en `publicar\v<versión>\` (dentro del proyecto, ignorada por git) el `.exe`, `latest.json`, `notas.md` y `SHA256SUMS.txt`.
-3. Tag `v<versión>`, push, y `gh release create v<versión> --title "Wister <versión>" --notes-file notas.md` con esos archivos.
+3. Tag `v<versión>`, push, y `gh release create v<versión> --title "Wister <versión>" --notes-file notas.md` con esos archivos (el script muestra el comando).
+
+**Betas**: versión con sufijo (`0.5.0-beta.1`) y `release.ps1 -Beta`, que toma las notas de "Sin publicar" y muestra el comando con `--prerelease`. GitHub no cuenta una pre-release como "latest", así que el actualizador no se la ofrece a nadie: se instala a mano. Quien la instala recibe después la versión final, que es mayor (`0.5.0` > `0.5.0-beta.1`). El script no deja publicar una versión con sufijo sin `-Beta` ni al revés.
 
 ### Actualizaciones (`actualizar.rs`)
 
-- `tauri-plugin-updater`, solo a pedido: el botón de Configuración llama a `buscar_actualizacion` y a `instalar_actualizacion`. El endpoint es `releases/latest/download/latest.json`, así que siempre apunta al último release.
+- `tauri-plugin-updater`. El botón de Configuración llama a `buscar_actualizacion` y a `instalar_actualizacion`. El endpoint es `releases/latest/download/latest.json`, así que siempre apunta al último release que no sea pre-release.
+- **Búsqueda automática** (`Config::buscar_actualizaciones`, prendida por defecto): un hilo busca al minuto de arrancar (para no competir con la carga del modelo) y después cada 24 h, contadas con la hora del sistema y revisadas cada hora para que una suspensión no las corra. Si hay versión nueva la guarda (`Pendiente`, comando `actualizacion_pendiente`) y emite `actualizacion_disponible`; Inicio muestra el cartel (`AvisoActualizacion.svelte`) y Configuración la muestra en "Acerca de". "Ahora no" guarda esa versión en `localStorage` y el cartel vuelve recién con la siguiente. Sin conexión no se avisa nada (queda en el registro). Instalar siempre lo decide el usuario.
 - Hasta la 0.3.0 había dos instaladores, y cada uno busca su entrada en `latest.json`: `windows-x86_64` (Vulkan) y `windows-x86_64-cpu` (`UpdaterBuilder::target`). Desde la 0.4.0 hay uno solo y las dos entradas apuntan a él, así que las instalaciones de solo CPU se pasan solas. La build de solo CPU (`build.ps1 -Cpu`) queda para probar y sigue buscando la entrada `-cpu`.
 - Los instaladores se firman con una clave de Tauri (minisign), distinta de la firma de código de Windows: la privada está en `%USERPROFILE%\.tauri\wister-actualizaciones.key`, fuera del repo, y la pública en `tauri.conf.json`. **Si se pierde, las versiones instaladas no pueden verificar las nuevas.** `requireSignedVersion` exige que la firma incluya la versión, para que no se pueda forzar la vuelta a una versión vieja.
 - Para probar sin publicar: `release.ps1 -Prueba` compila apuntando a `http://127.0.0.1:8765` (`scripts/actualizacion-prueba.json`). Se instala esa versión, se sube el número, se vuelve a correr y se sirve la carpeta con `python -m http.server 8765`.
@@ -253,7 +256,7 @@ La diferencia entre el bench y la app todavía no está explicada. Puede ser que
 - Sin telemetría ni reportes automáticos de errores. El registro de funcionamiento queda en la PC y sale solo si el usuario exporta el diagnóstico y lo comparte; no incluye el texto dictado.
 - El audio se procesa en memoria y no se guarda.
 - El historial guarda solo el texto, en la PC, y se puede desactivar o borrar.
-- La red se usa solo para bajar modelos, a pedido.
+- La red se usa para bajar modelos, a pedido, y para pedir `latest.json` a GitHub si la búsqueda automática de actualizaciones está prendida. No se manda ningún dato del usuario.
 
 ## Riesgos y preguntas abiertas
 

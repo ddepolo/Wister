@@ -2,6 +2,7 @@
   import { invoke } from "@tauri-apps/api/core";
   import { listen } from "@tauri-apps/api/event";
   import { onMount } from "svelte";
+  import AvisoActualizacion from "./AvisoActualizacion.svelte";
   import Historial from "./Historial.svelte";
   import {
     DESCARTES,
@@ -99,6 +100,7 @@
 </script>
 
 <h1>Inicio</h1>
+<AvisoActualizacion />
 <p class="ayuda">Mantené apretado <kbd>{nombreAtajo(config.atajo)}</kbd>, hablá y soltá.</p>
 
 {#if estado.tipo === "error"}
