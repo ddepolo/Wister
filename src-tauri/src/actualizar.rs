@@ -1,9 +1,10 @@
 //! Actualizaciones desde GitHub Releases, solo cuando el usuario las pide desde
 //! Configuración: la app no se conecta sola.
 //!
-//! El `latest.json` del último release trae una entrada por variante: `windows-x86_64`
-//! (la de Vulkan) y `windows-x86_64-cpu`. Cada instalación busca la suya, para que la
-//! de solo CPU no se pase a la de Vulkan, que no abre en una PC sin Vulkan.
+//! El `latest.json` del último release trae dos entradas: `windows-x86_64` (la de Vulkan)
+//! y `windows-x86_64-cpu`, que buscan las instalaciones de solo CPU de hasta la 0.3.0.
+//! Desde que la de Vulkan también abre sin drivers (ver `gpu.rs`) hay un solo instalador
+//! y las dos apuntan a él.
 
 use std::time::{Duration, Instant};
 

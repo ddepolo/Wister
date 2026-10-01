@@ -9,6 +9,7 @@ Los cambios de cada versión. El formato sigue [Keep a Changelog](https://keepac
 - "Copiar el último dictado" en el menú de la bandeja: lo deja en el portapapeles y lo avisa en la pastilla de abajo.
 - Configuración: "No poner punto al final", para que los mensajes de chat no terminen con punto.
 - Diccionario: botón "Agregar comandos de voz", con "punto y aparte", "nueva línea", "punto y coma", "dos puntos", "abrir paréntesis" y "cerrar paréntesis". Los signos se pegan a las palabras y se sacan los puntos que Whisper agrega alrededor de cada comando: "Abrir paréntesis. Hola. Cerrar paréntesis." queda "(Hola).".
+- Configuración: **Usar la placa de video**, para transcribir con el procesador aunque haya GPU. Si Wister se cierra de golpe mientras carga Vulkan o un modelo en la GPU (un driver con problemas), la vez siguiente arranca con el procesador y lo avisa.
 - Aviso al elegir un modelo que no entra cómodo en la RAM de la PC (usa más de un cuarto), en Configuración y en el asistente de primer uso. El modelo recomendado también tiene en cuenta la RAM.
 - CLI: `bench` con `--pausa` (esperar entre mediciones), y `--despertar`.
 
@@ -16,6 +17,7 @@ Los cambios de cada versión. El formato sigue [Keep a Changelog](https://keepac
 
 - Si Whisper estuvo quieto unos segundos, Wister despierta la placa de video mientras hablás: después de estar quieta tardaba 2 a 3 veces más en transcribir. Solo se hace si es barato (en placas lentas demoraría el dictado).
 - Los reemplazos no distinguen tildes ("nueva linea" también funciona); la ñ sí se distingue.
+- **Un solo instalador**: el de siempre ahora también abre en PCs sin drivers de video o en máquinas virtuales, y ahí usa el procesador. Ya no hay instalador "solo CPU"; las instalaciones que lo tenían se actualizan solas a este.
 - El instalador se muestra en español si Windows está en español (en inglés si no).
 - El registro anota los segundos de voz y cuánto hacía que no se usaba Whisper en cada dictado.
 

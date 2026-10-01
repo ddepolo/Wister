@@ -60,6 +60,7 @@ export type Config = {
   reemplazos: Reemplazo[];
   /** Sacar el punto que Whisper pone al final. */
   sin_punto_final: boolean;
+  usar_gpu: boolean;
 };
 
 export type Reemplazo = { buscar: string; reemplazar: string };
@@ -103,6 +104,17 @@ export type Estadisticas = {
 };
 
 export type Microfono = { nombre: string; predeterminado: boolean };
+
+/** Si se puede usar la placa de video (`sistema::EstadoGpu`). */
+export type EstadoGpu = {
+  /** Esta build puede usar la GPU (no es la de solo CPU). */
+  compilada: boolean;
+  placas: string[];
+  /** Vulkan no se cargó al arrancar: para usar la GPU hay que reiniciar. */
+  bloqueada: boolean;
+  /** Se apagó sola porque la vez anterior Wister se cerró al usarla. */
+  fallo_anterior: boolean;
+};
 
 /** Volumen del micrófono en Windows (`volumen::Volumen`); `nivel` va de 0 a 1. */
 export type Volumen = { nivel: number; silenciado: boolean };

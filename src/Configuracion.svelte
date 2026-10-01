@@ -9,6 +9,7 @@
     IDIOMAS,
     type Config,
     type Descarga,
+    type EstadoGpu,
     type Microfono,
     type Modelo,
     type Volumen,
@@ -27,6 +28,7 @@
 
   let version = $state("");
   let modelos = $state<Modelo[]>([]);
+  let gpu = $state<EstadoGpu | null>(null);
   let microfonos = $state<Microfono[]>([]);
   let descargas = $state<Record<string, { porcentaje: number | null; error?: string }>>({});
   let autoarranque = $state(false);
@@ -54,6 +56,7 @@
   onMount(() => {
     getVersion().then((v) => (version = v));
     invoke<boolean>("autoarranque").then((a) => (autoarranque = a));
+    invoke<EstadoGpu>("estado_gpu").then((g) => (gpu = g));
     refrescar();
     // Al volver a la ventana se releen los micrófonos: puede que se haya enchufado uno.
     window.addEventListener("focus", refrescar);
@@ -188,6 +191,13 @@
 
   const aplicar = (cambios: Partial<Config>) => intentar(() => cambiar(cambios));
 
+  // El modelo recomendado depende de si se usa la GPU.
+  const cambiarGpu = (usar_gpu: boolean) =>
+    intentar(async () => {
+      await cambiar({ usar_gpu });
+      modelos = await invoke<Modelo[]>("listar_modelos");
+    });
+
   const cambiarAutoarranque = (activo: boolean) =>
     intentar(async () => {
       await invoke("cambiar_autoarranque", { activo });
@@ -277,6 +287,34 @@
       </li>
     {/each}
   </ul>
+  {#if gpu?.compilada}
+    {@const sinPlacas = !gpu.bloqueada && gpu.placas.length === 0}
+    <label class="casilla">
+      <input
+        type="checkbox"
+        checked={config.usar_gpu && !sinPlacas}
+        disabled={sinPlacas}
+        onchange={(e) => cambiarGpu(e.currentTarget.checked)}
+      />
+      Usar la placa de video{gpu.placas.length ? ` (${gpu.placas[0]})` : ""}
+    </label>
+    {#if gpu.fallo_anterior && !config.usar_gpu}
+      <p class="nota aviso-ram">
+        La última vez Wister se cerró mientras usaba la placa de video, así que ahora usa el
+        procesador. Si actualizaste los drivers, probá activarla de nuevo.
+      </p>
+    {/if}
+    {#if gpu.bloqueada && config.usar_gpu}
+      <p class="nota muted">
+        Para usar la placa de video hay que reiniciar Wister.
+        <button class="enlace" onclick={() => invoke("reiniciar")}>Reiniciar ahora</button>
+      </p>
+    {:else if sinPlacas}
+      <p class="nota muted">
+        No se encontró una placa de video compatible: Wister usa el procesador.
+      </p>
+    {/if}
+  {/if}
 </section>
 
 <section class="tarjeta">

@@ -113,8 +113,13 @@ pub fn estado_actual(estado: tauri::State<EstadoActual>) -> Estado {
 }
 
 /// Modelo por defecto según los resultados de la Fase 0 (ver docs/fase-0.md).
-pub fn modelo_por_defecto() -> &'static str {
-    elegir_por_defecto(stt::gpu_available(), crate::sistema::ram_mb())
+pub fn modelo_por_defecto(usar_gpu: bool) -> &'static str {
+    elegir_por_defecto(usa_gpu(usar_gpu), crate::sistema::ram_mb())
+}
+
+/// Si Whisper va a usar la GPU con `usar_gpu` de la configuración.
+pub fn usa_gpu(usar_gpu: bool) -> bool {
+    usar_gpu && stt::gpu_available()
 }
 
 /// `turbo-q5_0` con GPU y `small` sin GPU; si no entra en la RAM, el mejor que entre.
@@ -356,7 +361,7 @@ impl Dictado {
             &self.app,
             rendimiento::Evento::Fin {
                 voz_ms: (voz.duration_secs() * 1000.0) as u64,
-                recomendado: rendimiento::recomendar(&mediciones, stt::gpu_available()),
+                recomendado: rendimiento::recomendar(&mediciones, usa_gpu(self.config.usar_gpu)),
             },
         );
         self.cargar_modelo();
@@ -376,7 +381,7 @@ impl Dictado {
         self.config
             .modelo
             .clone()
-            .unwrap_or_else(|| modelo_por_defecto().to_owned())
+            .unwrap_or_else(|| modelo_por_defecto(self.config.usar_gpu).to_owned())
     }
 
     fn opciones(&self) -> stt::Options {
@@ -387,10 +392,15 @@ impl Dictado {
         }
     }
 
-    /// Carga el modelo de la configuración, salvo que ya sea el cargado.
+    /// Carga el modelo de la configuración, salvo que ya esté cargado así.
     fn cargar_modelo(&mut self) {
         let nombre = self.nombre_modelo();
-        if self.modelo.as_ref().is_some_and(|m| m.nombre == nombre) {
+        let gpu = usa_gpu(self.config.usar_gpu);
+        if self
+            .modelo
+            .as_ref()
+            .is_some_and(|m| m.nombre == nombre && m.engine.gpu == gpu)
+        {
             return;
         }
         // Se libera el anterior antes de cargar: si no, por un momento ocupan memoria los dos.
@@ -401,7 +411,10 @@ impl Dictado {
                 modelo: nombre.clone(),
             },
         );
-        match cargar_engine(&nombre, &self.opciones(), true) {
+        let resultado = cargar_engine(&nombre, &self.opciones(), gpu);
+        // La marca de `gpu::preparar` cubre el arranque de Vulkan y la primera carga.
+        crate::gpu::desmarcar();
+        match resultado {
             Ok((engine, calentamiento)) => {
                 self.reposo = Estado::Listo {
                     modelo: nombre.clone(),
@@ -708,7 +721,23 @@ pub fn cargar_engine(
         bail!("falta el modelo {nombre}: descargalo en Configuración");
     }
     let ruta = modelo.path()?;
-    let mut engine = crate::registro::con_detalle_nativo(|| stt::Engine::load(&ruta, gpu))?;
+    if gpu {
+        crate::gpu::marcar();
+    }
+    let resultado = cargar_y_calentar(nombre, &ruta, opciones, gpu);
+    if gpu {
+        crate::gpu::desmarcar();
+    }
+    resultado
+}
+
+fn cargar_y_calentar(
+    nombre: &str,
+    ruta: &std::path::Path,
+    opciones: &stt::Options,
+    gpu: bool,
+) -> Result<(stt::Engine, Duration)> {
+    let mut engine = crate::registro::con_detalle_nativo(|| stt::Engine::load(ruta, gpu))?;
 
     // La primera transcripción es lenta (con Vulkan se compilan los shaders: ~7 s en
     // una RTX 5070 Ti). Se hace una de prueba ahora para que no la pague el primer dictado.

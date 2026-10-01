@@ -28,6 +28,7 @@ Principios que no se negocian:
 | Stack | **Tauri 2 + Rust**, con la UI en **Svelte 5 + TypeScript** (Vite) | Binario nativo liviano, whisper.cpp embebido, sin Python ni servidor aparte; la UI es chica y Svelte da el bundle más liviano |
 | Motor STT | **whisper.cpp vía `whisper-rs`**, modelos GGML | Corre en CPU y GPU |
 | GPU | **Vulkan** por defecto; CUDA como opción de compilación | Vulkan funciona en NVIDIA, AMD e Intel; las DLL de CUDA pesan cientos de MB |
+| Instalador | **Uno solo**, con `vulkan-1.dll` cargada de forma diferida (`/DELAYLOAD`) y "Usar la placa de video" en Configuración | Sin drivers no existe `vulkan-1.dll` y el ejecutable no abriría; con la carga diferida sigue con la CPU. Hasta la 0.3.0 había uno de solo CPU |
 | Atajo global | **Raw Input** (`RIDEV_INPUTSINK`), no `RegisterHotKey`, `tauri-plugin-global-shortcut` ni hook `WH_KEYBOARD_LL` | Hay que detectar el *soltado* de atajos de solo modificadores y distinguir izquierda/derecha. El hook se descartó porque cualquier programa con un hook más nuevo puede dejarlo sin teclas |
 | Atajo por defecto | **`Ctrl` + `Shift` izquierdos**; configurable con `Ctrl`/`Shift`/`Alt` y F1–F24 | No abre el menú Inicio. Las teclas no se tragan: tocar otra tecla cancela (así `Ctrl+Shift+T` sigue andando) y un toque de menos de 300 ms se descarta. `Win` no se permite: Raw Input no puede evitar que abra Inicio |
 | Insertar texto | Portapapeles + `Ctrl+V` con `SendInput`, restaurando el contenido anterior y excluyéndolo del historial de `Win+V` | Rápido y respeta Unicode |
@@ -39,20 +40,18 @@ Principios que no se negocian:
 
 ## Estado
 
-**Versión 0.3.0**: dictado push-to-talk completo (atajo, grabación, transcripción, pegado) con VAD, overlay, ventana con barra lateral (Inicio con estadísticas, Historial en SQLite, Diccionario con vocabulario y reemplazos, Configuración), asistente de primer uso, micrófono y su volumen (también desde la bandeja), registro de funcionamiento, prueba de rendimiento y exportar diagnóstico, actualización con un botón y dos instaladores NSIS (Vulkan y solo CPU) en GitHub Releases. El detalle está en `CHANGELOG.md`.
+**Versión 0.3.0**: dictado push-to-talk completo (atajo, grabación, transcripción, pegado) con VAD, overlay, ventana con barra lateral (Inicio con estadísticas, Historial en SQLite, Diccionario con vocabulario y reemplazos, Configuración), asistente de primer uso, micrófono y su volumen (también desde la bandeja), registro de funcionamiento, prueba de rendimiento y exportar diagnóstico, actualización con un botón y dos instaladores NSIS (Vulkan y solo CPU) en GitHub Releases; desde la 0.4.0, uno solo. El detalle está en `CHANGELOG.md`.
 
 Cancelar un dictado con `Esc` ya funciona: cualquier otra tecla apretada mientras se graba lo cancela.
 
 Pendiente para la 0.4.0, en orden aproximado de prioridad:
 
-Hecho sin publicar (ver `CHANGELOG.md`): despertar la GPU mientras se habla, copiar el último dictado desde la bandeja, "No poner punto al final", comandos de voz listos y el aviso de RAM al elegir un modelo.
+Hecho sin publicar (ver `CHANGELOG.md`): despertar la GPU mientras se habla, copiar el último dictado desde la bandeja, "No poner punto al final", comandos de voz listos, el aviso de RAM al elegir un modelo y el instalador único con "Usar la placa de video".
 
 1. **Tema claro / oscuro / automático** en Configuración (hoy sigue el modo de apps de Windows).
 2. **Idioma en la bandeja**, como el micrófono.
 3. **Modo manos libres**: tocar el atajo para empezar y otra vez para terminar. Toca `hotkey::Detector`, que es delicado.
 4. **Instaladores compilados en GitHub Actions y firmados** con SignPath Foundation (gratis para proyectos libres; firma solo lo compilado en CI). Arrancar la postulación temprano, porque tarda.
-
-En espera: elegir CPU o GPU a mano. En la notebook de prueba la GPU integrada fue 2,6 veces más rápida que la CPU, así que por ahora no hace falta; se retoma si la prueba de rendimiento muestra un caso contrario.
 
 Más adelante: post-procesado con un LLM local, estilos por app, macOS y Linux.
 
@@ -75,8 +74,8 @@ docs/fase-0.md             compilación, CLI y mediciones de modelos
 ```powershell
 npm install                     # una vez
 .\scripts\dev.ps1               # app en modo desarrollo con Vulkan (-Cpu para solo CPU)
-.\scripts\build.ps1             # instalador NSIS en C:\wr\release\bundle\nsis\ (-Cpu para solo CPU)
-.\scripts\release.ps1           # los dos instaladores + latest.json en publicar\v<versión> (-Prueba)
+.\scripts\build.ps1             # instalador NSIS en C:\wr\release\bundle\nsis\ (-Cpu para solo CPU, para probar)
+.\scripts\release.ps1           # el instalador + latest.json en publicar\v<versión> (-Prueba)
 npm run check                   # svelte-check
 cargo fmt
 cargo clippy --all-targets -- -D warnings   # CI falla con cualquier warning
@@ -104,6 +103,7 @@ Trampas que ya costaron tiempo:
 - **Estado de Tauri**: las ventanas de `tauri.conf.json` se crean antes del `setup`, y en release la UI llama a los comandos antes de que exista el estado que registra el `setup`. Esos comandos usan `try_state`.
 - **COM**: `windows-sys` no trae las interfaces COM; para `IAudioEndpointVolume` se usa el crate `windows` 0.62 (el que ya trae Tauri), en un hilo propio con `COINIT_MULTITHREADED`.
 - **Overlay**: `show()` de Tauri activa la ventana y, si se muestra por fuera, su `hide()` no hace nada. Se usa `ShowWindow` nativo para las dos cosas.
+- **Vulkan diferido**: `vulkan-1.dll` se carga con `/DELAYLOAD` (`src-tauri/build.rs`) y los hooks de `gpu.rs` le dan a whisper.cpp un Vulkan que falla si la DLL no está o si "Usar la placa de video" estaba apagada al arrancar. Nunca llamar a `whisper_rs::vulkan::list_devices` sin pasar por `stt::gpu_devices`: si Vulkan no arrancó, tira una excepción de C++ que aborta.
 - **Raw Input**: un solo registro por tipo de dispositivo y por proceso; el de Wister reemplaza el del teclado de tao. Las teclas inyectadas llegan con `hDevice` nulo.
 - **Portapapeles**: el hilo dueño tiene que procesar mensajes siempre (Windows le manda `WM_DESTROYCLIPBOARD` de forma sincrónica). `SendInput` no avisa cuando UIPI lo bloquea: se revisa `TokenElevation` de la ventana activa.
 - **Confirmación a los 300 ms**: la grabación arranca al apretar, pero el overlay, el estado "Grabando" y el sonido esperan `DURACION_MINIMA` (el hilo de dictado usa `recv_timeout`).

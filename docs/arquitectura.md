@@ -127,7 +127,16 @@ Si al final el texto es solo una de las frases típicas (`stt::is_hallucination`
 - Sampling greedy (`best_of: 1`): para dictado alcanza y es bastante más rápido que beam search.
 - Con menos de 1 s de audio Whisper tiende a inventar, así que se completa con silencio hasta 1 s.
 - Backends: CPU (con AVX2), **Vulkan** (NVIDIA, AMD, Intel) y CUDA como opción de compilación. Vulkan es el de por defecto porque las DLL de CUDA pesan cientos de MB.
-- El modelo recomendado es `large-v3-turbo-q5_0` si hay GPU y `small` si no. Con Vulkan, "hay GPU" quiere decir que el binario tiene Vulkan **y** que `whisper_rs::vulkan::list_devices()` encuentra algún dispositivo (se consulta una vez: inicializar Vulkan tarda). Sin dispositivo, whisper.cpp sigue en CPU sin avisar. Una GPU integrada cuenta como GPU; la prueba de rendimiento dice si en esa PC conviene.
+- El modelo recomendado es `large-v3-turbo-q5_0` si se usa la GPU y `small` si no. Con Vulkan, "hay GPU" quiere decir que el binario tiene Vulkan, que Vulkan arrancó (`ggml_backend_reg_by_name("Vulkan")`) **y** que `whisper_rs::vulkan::list_devices()` encuentra algún dispositivo (se consulta una vez: inicializar Vulkan tarda). Sin dispositivo, whisper.cpp sigue en CPU sin avisar. Una GPU integrada cuenta como GPU; la prueba de rendimiento dice si en esa PC conviene, y "Usar la placa de video" en Configuración permite pasar a la CPU.
+
+### Un solo instalador para GPU y CPU (`gpu.rs`)
+
+- `vulkan-1.dll` viene con los drivers de video. Importada de forma normal, en una PC sin drivers (o en una máquina virtual) Windows no abre el programa. Por eso se carga de forma diferida (`/DELAYLOAD:vulkan-1.dll` + `delayimp.lib`, en `src-tauri/build.rs`): recién cuando whisper.cpp la usa.
+- whisper.cpp registra el backend de Vulkan la primera vez que se usa ggml, aunque sea para la CPU, y para eso llama a `vkGetInstanceProcAddr`. Si la DLL no está, el hook de fallas de MSVC (`__pfnDliFailureHook2`) devuelve una `vkGetInstanceProcAddr` de mentira cuyas funciones devuelven `VK_ERROR_INITIALIZATION_FAILED`. La primera (`vkEnumerateInstanceVersion`) hace que vulkan.hpp tire una excepción que `ggml_backend_vk_reg` ataja, y whisper.cpp sigue solo con la CPU.
+- Listar las GPU (`ggml_backend_vk_get_device_count`) no ataja esa excepción y aborta el programa. Por eso `stt::gpu_devices` primero se fija que el backend de Vulkan haya quedado registrado.
+- **"Usar la placa de video"** (`Config::usar_gpu`) se aplica al momento si Vulkan se cargó al arrancar. Si al arrancar estaba apagada, Vulkan no se carga (el hook de aviso, `__pfnDliNotifyHook2`, hace lo mismo que si faltara la DLL), así que para volver a usar la GPU hay que reiniciar; la UI ofrece hacerlo.
+- **Drivers que cierran la app**: mientras arranca Vulkan y se carga el primer modelo (y cada vez que se carga uno en la GPU) existe el archivo `usando-gpu` en la carpeta de la configuración. Si al arrancar sigue ahí, la sesión anterior se cerró de golpe: se apaga `usar_gpu`, no se carga Vulkan y Configuración lo avisa. Lo decide un plugin de Tauri (`gpu::plugin`) porque los plugins se inician antes de crear las ventanas, que llaman comandos que tocan Vulkan, y después del de instancia única, para que una segunda instancia no toque la marca.
+- Para probarlo en una PC con drivers: con "Usar la placa de video" apagada, `vulkan-1.dll` no aparece entre los módulos del proceso y el registro dice `backends = 1`. El caso de la DLL que falta se prueba con el instalador en el Sandbox de Windows.
 
 ### Pegado (`pegar.rs`)
 
@@ -216,13 +225,13 @@ Dos trampas que resuelven `scripts/dev.ps1` y `scripts/build.ps1`:
 ## Publicar una versión
 
 1. Subir la versión en `Cargo.toml` y `package.json`, y pasar lo de "Sin publicar" del `CHANGELOG.md` a su sección.
-2. `.\scripts\release.ps1`: compila los dos instaladores y deja en `publicar\v<versión>\` (dentro del proyecto, ignorada por git) los `.exe`, `latest.json`, `notas.md` y `SHA256SUMS.txt`.
+2. `.\scripts\release.ps1`: compila el instalador y deja en `publicar\v<versión>\` (dentro del proyecto, ignorada por git) el `.exe`, `latest.json`, `notas.md` y `SHA256SUMS.txt`.
 3. Tag `v<versión>`, push, y `gh release create v<versión> --title "Wister <versión>" --notes-file notas.md` con esos archivos.
 
 ### Actualizaciones (`actualizar.rs`)
 
 - `tauri-plugin-updater`, solo a pedido: el botón de Configuración llama a `buscar_actualizacion` y a `instalar_actualizacion`. El endpoint es `releases/latest/download/latest.json`, así que siempre apunta al último release.
-- Cada variante busca su entrada en `latest.json`: `windows-x86_64` (Vulkan) y `windows-x86_64-cpu` (`UpdaterBuilder::target`), para que la de CPU no se pase a la de Vulkan.
+- Hasta la 0.3.0 había dos instaladores, y cada uno busca su entrada en `latest.json`: `windows-x86_64` (Vulkan) y `windows-x86_64-cpu` (`UpdaterBuilder::target`). Desde la 0.4.0 hay uno solo y las dos entradas apuntan a él, así que las instalaciones de solo CPU se pasan solas. La build de solo CPU (`build.ps1 -Cpu`) queda para probar y sigue buscando la entrada `-cpu`.
 - Los instaladores se firman con una clave de Tauri (minisign), distinta de la firma de código de Windows: la privada está en `%USERPROFILE%\.tauri\wister-actualizaciones.key`, fuera del repo, y la pública en `tauri.conf.json`. **Si se pierde, las versiones instaladas no pueden verificar las nuevas.** `requireSignedVersion` exige que la firma incluya la versión, para que no se pueda forzar la vuelta a una versión vieja.
 - Para probar sin publicar: `release.ps1 -Prueba` compila apuntando a `http://127.0.0.1:8765` (`scripts/actualizacion-prueba.json`). Se instala esa versión, se sube el número, se vuelve a correr y se sirve la carpeta con `python -m http.server 8765`.
 
@@ -249,5 +258,5 @@ La diferencia entre el bench y la app todavía no está explicada. Puede ser que
 ## Riesgos y preguntas abiertas
 
 - **Antivirus**: `SendInput` y la lectura global del teclado pueden disparar falsos positivos. La mitigación es firmar el binario (hay firma gratuita para proyectos open source, como SignPath) y publicar el código.
-- **Detección de GPU**: con Vulkan se detecta si hay un dispositivo, pero una GPU integrada débil cuenta igual y puede ser más lenta que la CPU. La app todavía no deja elegir la CPU; la prueba de rendimiento lo muestra, y con esos datos se decide si agregar la opción.
+- **Detección de GPU**: con Vulkan se detecta si hay un dispositivo, pero una GPU integrada débil cuenta igual y puede ser más lenta que la CPU. La prueba de rendimiento lo muestra, y "Usar la placa de video" permite pasar a la CPU.
 - **Streaming**: Whisper no transcribe en vivo. Hoy se transcribe todo al soltar el atajo.

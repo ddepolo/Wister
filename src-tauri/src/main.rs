@@ -7,6 +7,7 @@ mod config;
 mod diagnostico;
 mod diccionario;
 mod dictado;
+mod gpu;
 mod historial;
 mod hotkey;
 mod overlay;
@@ -26,6 +27,8 @@ fn main() {
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             bandeja::mostrar_config(app)
         }))
+        // Después del de instancia única y antes que todo lo que pueda tocar Vulkan.
+        .plugin(gpu::plugin())
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
@@ -52,6 +55,7 @@ fn main() {
             historial::borrar_historial,
             historial::estadisticas,
             salir,
+            reiniciar,
             abrir_pagina,
             diccionario::comandos_de_voz,
             actualizar::buscar_actualizacion,
@@ -62,6 +66,7 @@ fn main() {
             rendimiento::cancelar_prueba_rendimiento,
             volumen::obtener_volumen,
             volumen::cambiar_volumen,
+            sistema::estado_gpu,
         ])
         .setup(|app| {
             if let Some(carpeta) = registro::carpeta(app.handle()) {
@@ -115,6 +120,12 @@ fn abrir_pagina(pagina: &str) -> Result<(), String> {
 #[tauri::command]
 fn salir(app: AppHandle) {
     app.exit(0);
+}
+
+/// Para empezar a usar la placa de video si Vulkan no se cargó al arrancar.
+#[tauri::command]
+fn reiniciar(app: AppHandle) {
+    app.restart();
 }
 
 fn iniciar_dictado(app: &AppHandle) -> anyhow::Result<()> {

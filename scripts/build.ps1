@@ -1,7 +1,7 @@
 ﻿# Compila Wister en release y arma el instalador NSIS.
 #
-#   .\scripts\build.ps1            # con Vulkan (GPU)
-#   .\scripts\build.ps1 -Cpu       # solo CPU
+#   .\scripts\build.ps1            # con Vulkan: el que se publica (sin drivers usa la CPU)
+#   .\scripts\build.ps1 -Cpu       # solo CPU, para probar (ya no se publica)
 #   .\scripts\build.ps1 -Config x.json   # mezcla x.json con tauri.conf.json (ver release.ps1)
 #
 # Las actualizaciones se firman con la clave de %USERPROFILE%\.tauri\wister-actualizaciones.key

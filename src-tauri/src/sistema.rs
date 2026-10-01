@@ -1,6 +1,9 @@
 //! Datos de la PC para el diagnóstico: versión de Windows, CPU, memoria y placas de video.
 
+use serde::Serialize;
 use wister_core::stt;
+
+use crate::gpu;
 
 #[derive(Debug, Clone)]
 pub struct Sistema {
@@ -47,10 +50,42 @@ pub fn ram_mb() -> u64 {
         .unwrap_or_else(plataforma::ram_mb)
 }
 
+/// Para la opción "Usar la placa de video" de Configuración.
+#[derive(Serialize)]
+pub struct EstadoGpu {
+    /// Si esta build puede usar la GPU (no es la de solo CPU).
+    compilada: bool,
+    /// GPUs que puede usar Whisper; vacía si no hay o si Vulkan no se cargó.
+    placas: Vec<String>,
+    /// Vulkan no se cargó al arrancar: para usar la GPU hay que reiniciar.
+    bloqueada: bool,
+    /// Se apagó sola porque la vez anterior Wister se cerró al usarla.
+    fallo_anterior: bool,
+}
+
+/// Asincrónico: la primera vez inicia Vulkan, que tarda, y no tiene que trabar la ventana.
+#[tauri::command]
+pub async fn estado_gpu() -> EstadoGpu {
+    EstadoGpu {
+        compilada: stt::gpu_backend().is_some(),
+        placas: stt::gpu_devices().iter().map(|g| g.name.clone()).collect(),
+        bloqueada: gpu::bloqueada(),
+        fallo_anterior: gpu::fallo_anterior(),
+    }
+}
+
 /// Variante del binario y la GPU que usa Whisper.
 pub fn descripcion_gpu() -> String {
     match stt::gpu_backend() {
         None => "compilado solo para CPU".into(),
+        Some(_) if gpu::bloqueada() => {
+            if gpu::fallo_anterior() {
+                "GPU desactivada porque Wister se cerró al usarla: usa la CPU".into()
+            } else {
+                "GPU desactivada en Configuración: usa la CPU".into()
+            }
+        }
+        Some(_) if gpu::sin_vulkan() => "sin drivers con Vulkan: usa la CPU".into(),
         Some(backend) => match stt::gpu_devices() {
             [] if backend == "Vulkan" => "Vulkan sin GPU compatible: usa la CPU".into(),
             [] => backend.into(),

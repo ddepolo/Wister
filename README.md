@@ -36,18 +36,13 @@ La transcripción la hace [Whisper](https://github.com/openai/whisper) (vía [wh
 
 ## Instalación
 
-Bajá el instalador de la [última versión](https://github.com/ddepolo/Wister/releases/latest):
-
-| Archivo | Para quién |
-|---|---|
-| `Wister_<versión>_x64-setup.exe` | **La mayoría.** Usa la placa de video con Vulkan (NVIDIA, AMD o Intel) y, si no hay, el procesador. |
-| `Wister_<versión>_x64-cpu-setup.exe` | PCs donde el anterior no abre: máquinas virtuales o sin drivers de video. Usa solo el procesador. |
+Bajá `Wister_<versión>_x64-setup.exe` de la [última versión](https://github.com/ddepolo/Wister/releases/latest). Usa la placa de video con Vulkan (NVIDIA, AMD o Intel) y, si no hay o no tiene drivers, el procesador. Si preferís el procesador, apagá **Usar la placa de video** en Configuración.
 
 Se instala solo para tu usuario, sin permisos de administrador. El modelo de voz se baja después, desde el asistente de primer uso.
 
 Como el instalador todavía no está firmado, Windows SmartScreen va a avisar que es de un editor desconocido: **Más información → Ejecutar de todas formas**. Si querés verificar lo que bajaste, cada versión trae un `SHA256SUMS.txt` (`Get-FileHash .\Wister_...exe` en PowerShell).
 
-Para actualizar: **Configuración → Buscar actualizaciones**. Cada instalación se actualiza a su misma variante.
+Para actualizar: **Configuración → Buscar actualizaciones**. Si tenías el instalador "solo CPU" de las versiones anteriores, se actualiza solo a este.
 
 ## Uso
 

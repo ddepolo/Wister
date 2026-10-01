@@ -120,6 +120,15 @@ pub fn gpu_devices() -> &'static [GpuDevice] {
     DEVICES.get_or_init(|| {
         #[cfg(feature = "vulkan")]
         {
+            // Si Vulkan no arrancó (sin drivers o sin GPU compatible), listar los
+            // dispositivos tira una excepción de C++ que aborta el programa. Registrar el
+            // backend la ataja: si no quedó registrado, no hay dispositivos.
+            let registrado = unsafe {
+                !whisper_rs::whisper_rs_sys::ggml_backend_reg_by_name(c"Vulkan".as_ptr()).is_null()
+            };
+            if !registrado {
+                return Vec::new();
+            }
             whisper_rs::vulkan::list_devices()
                 .into_iter()
                 .map(|d| GpuDevice {

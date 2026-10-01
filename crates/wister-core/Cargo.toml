@@ -9,7 +9,8 @@ repository.workspace = true
 [features]
 default = []
 cuda = ["whisper-rs/cuda"]
-vulkan = ["whisper-rs/vulkan"]
+# `raw-api`: para ver si Vulkan arrancó antes de listar las GPU (ver `stt::gpu_devices`).
+vulkan = ["whisper-rs/vulkan", "whisper-rs/raw-api"]
 
 [dependencies]
 anyhow = "1"

@@ -19,7 +19,7 @@ use crate::hotkey;
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct Config {
-    /// `None`: el recomendado según haya GPU o no.
+    /// `None`: el recomendado según se use la GPU o no.
     pub modelo: Option<String>,
     /// `None`: el micrófono predeterminado de Windows.
     pub microfono: Option<String>,
@@ -41,6 +41,8 @@ pub struct Config {
     pub reemplazos: Vec<Reemplazo>,
     /// Sacar el punto que Whisper pone al final (queda raro en los chats).
     pub sin_punto_final: bool,
+    /// Transcribir con la placa de video si hay una compatible (si no, con el procesador).
+    pub usar_gpu: bool,
 }
 
 impl Default for Config {
@@ -57,6 +59,7 @@ impl Default for Config {
             vocabulario: Vec::new(),
             reemplazos: Vec::new(),
             sin_punto_final: false,
+            usar_gpu: true,
         }
     }
 }
@@ -107,7 +110,7 @@ pub fn cargar(app: &AppHandle) -> Config {
         .validar()
 }
 
-fn guardar(app: &AppHandle, config: &Config) -> Result<()> {
+pub fn guardar(app: &AppHandle, config: &Config) -> Result<()> {
     let p = ruta(app)?;
     if let Some(dir) = p.parent() {
         std::fs::create_dir_all(dir)
@@ -167,8 +170,9 @@ pub struct ModeloInfo {
 }
 
 #[tauri::command]
-pub fn listar_modelos() -> Vec<ModeloInfo> {
-    let recomendado = dictado::modelo_por_defecto();
+pub fn listar_modelos(app: AppHandle) -> Vec<ModeloInfo> {
+    let usar_gpu = obtener_config(app).usar_gpu;
+    let recomendado = dictado::modelo_por_defecto(usar_gpu);
     let ram_mb = crate::sistema::ram_mb();
     models::CATALOG
         .iter()
@@ -369,6 +373,7 @@ mod tests {
         assert!(c.vocabulario.is_empty());
         assert!(c.reemplazos.is_empty());
         assert!(!c.sin_punto_final);
+        assert!(c.usar_gpu);
     }
 
     #[test]
@@ -411,6 +416,7 @@ mod tests {
                 reemplazar: "ChatGPT".into(),
             }],
             sin_punto_final: true,
+            usar_gpu: false,
         };
         let texto = serde_json::to_string(&c).unwrap();
         assert_eq!(serde_json::from_str::<Config>(&texto).unwrap(), c);

@@ -32,7 +32,7 @@ Wister transcribes any language Whisper supports (the UI offers Spanish, English
 
 ## Download
 
-Get the installer from the [latest release](https://github.com/ddepolo/Wister/releases/latest): `Wister_<version>_x64-setup.exe` for most PCs (GPU through Vulkan, falling back to the CPU), or `Wister_<version>_x64-cpu-setup.exe` if that one does not start (virtual machines, no video drivers). The installer is not signed yet, so SmartScreen will warn about an unknown publisher: **More info → Run anyway**. Updates are installed from **Configuración → Buscar actualizaciones** (the app never checks on its own).
+Get the installer from the [latest release](https://github.com/ddepolo/Wister/releases/latest): `Wister_<version>_x64-setup.exe`. It uses the GPU through Vulkan and falls back to the CPU when there is no GPU or no video drivers; **Configuración → Usar la placa de video** switches to the CPU by hand. The installer is not signed yet, so SmartScreen will warn about an unknown publisher: **More info → Run anyway**. Updates are installed from **Configuración → Buscar actualizaciones** (the app never checks on its own).
 
 ## Building
 

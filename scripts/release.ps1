@@ -1,10 +1,14 @@
-﻿# Arma una versión para GitHub Releases: compila los dos instaladores (Vulkan y solo
-# CPU) y escribe latest.json (lo que lee el actualizador, con las firmas), notas.md
-# (la sección del CHANGELOG) y SHA256SUMS.txt.
+﻿# Arma una versión para GitHub Releases: compila el instalador y escribe latest.json (lo
+# que lee el actualizador, con la firma), notas.md (la sección del CHANGELOG) y
+# SHA256SUMS.txt.
+#
+# Hay un solo instalador: usa la GPU con Vulkan si puede y si no, la CPU. Hasta la 0.3.0
+# había otro de solo CPU; esas instalaciones buscan la entrada `windows-x86_64-cpu` de
+# latest.json, que apunta al mismo instalador para que se pasen solas a este.
 #
 #   .\scripts\release.ps1                # deja todo en publicar\v<versión> (en el proyecto)
 #   .\scripts\release.ps1 -Prueba        # para probar el actualizador en esta PC
-#   .\scripts\release.ps1 -SinCompilar   # reusa los instaladores ya compilados
+#   .\scripts\release.ps1 -SinCompilar   # reusa el instalador ya compilado
 #
 # -Prueba compila con scripts\actualizacion-prueba.json, que apunta el actualizador a
 # http://127.0.0.1:8765, y deja los archivos en publicar\prueba-v<versión>. Para
@@ -28,7 +32,6 @@ if ($Prueba) {
 
 if (-not $SinCompilar) {
     & "$PSScriptRoot\build.ps1" -Config $config
-    & "$PSScriptRoot\build.ps1" -Cpu -Config $config
 }
 
 # Las notas son la sección de esta versión en el CHANGELOG (hasta la siguiente `## [`
@@ -46,19 +49,17 @@ if ($seccion.Success) {
 if (Test-Path $salida) { Remove-Item -Recurse -Force $salida }
 New-Item -ItemType Directory -Force $salida | Out-Null
 
-$variantes = @(
-    @{ Clave = "windows-x86_64"; Target = "C:\wr"; Nombre = "Wister_${version}_x64-setup.exe" },
-    @{ Clave = "windows-x86_64-cpu"; Target = "C:\wt-cpu"; Nombre = "Wister_${version}_x64-cpu-setup.exe" }
-)
-$plataformas = [ordered]@{}
-foreach ($v in $variantes) {
-    $origen = "$($v.Target)\release\bundle\nsis\Wister_${version}_x64-setup.exe"
-    if (-not (Test-Path "$origen.sig")) { throw "No está $origen.sig: compilá primero." }
-    Copy-Item $origen "$salida\$($v.Nombre)"
-    $plataformas[$v.Clave] = [ordered]@{
-        signature = (Get-Content "$origen.sig" -Raw).Trim()
-        url = "$base/$($v.Nombre)"
-    }
+$nombre = "Wister_${version}_x64-setup.exe"
+$origen = "C:\wr\release\bundle\nsis\$nombre"
+if (-not (Test-Path "$origen.sig")) { throw "No está $origen.sig: compilá primero." }
+Copy-Item $origen "$salida\$nombre"
+$instalador = [ordered]@{
+    signature = (Get-Content "$origen.sig" -Raw).Trim()
+    url = "$base/$nombre"
+}
+$plataformas = [ordered]@{
+    "windows-x86_64" = $instalador
+    "windows-x86_64-cpu" = $instalador
 }
 
 # Sin BOM: el actualizador lee el JSON tal cual.
