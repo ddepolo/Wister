@@ -4,6 +4,10 @@ Los cambios de cada versión. El formato sigue [Keep a Changelog](https://keepac
 
 ## [Sin publicar]
 
+## [0.4.0] - 2026-10-01
+
+Un solo instalador para todas las PCs, con o sin placa de video, y varias comodidades para dictar.
+
 ### Agregado
 
 - "Copiar el último dictado" en el menú de la bandeja: lo deja en el portapapeles y lo avisa en la pastilla de abajo.
@@ -11,7 +15,7 @@ Los cambios de cada versión. El formato sigue [Keep a Changelog](https://keepac
 - Diccionario: botón "Agregar comandos de voz", con "punto y aparte", "nueva línea", "punto y coma", "dos puntos", "abrir paréntesis" y "cerrar paréntesis". Los signos se pegan a las palabras y se sacan los puntos que Whisper agrega alrededor de cada comando: "Abrir paréntesis. Hola. Cerrar paréntesis." queda "(Hola).".
 - Configuración: **Usar la placa de video**, para transcribir con el procesador aunque haya GPU. Si Wister se cierra de golpe mientras carga Vulkan o un modelo en la GPU (un driver con problemas), la vez siguiente arranca con el procesador y lo avisa.
 - Aviso al elegir un modelo que no entra cómodo en la RAM de la PC (usa más de un cuarto), en Configuración y en el asistente de primer uso. El modelo recomendado también tiene en cuenta la RAM.
-- CLI: `bench` con `--pausa` (esperar entre mediciones), y `--despertar`.
+- CLI: `bench` con `--pausa` (esperar entre mediciones) y `--despertar`.
 
 ### Cambiado
 
@@ -93,7 +97,8 @@ Primera versión pública.
 - CLI `wister` para probar y medir modelos (`devices`, `models`, `download`, `dictate`, `transcribe`, `bench`).
 - Instalador NSIS por usuario, sin permisos de administrador.
 
-[Sin publicar]: https://github.com/ddepolo/Wister/compare/v0.3.0...HEAD
+[Sin publicar]: https://github.com/ddepolo/Wister/compare/v0.4.0...HEAD
+[0.4.0]: https://github.com/ddepolo/Wister/releases/tag/v0.4.0
 [0.3.0]: https://github.com/ddepolo/Wister/releases/tag/v0.3.0
 [0.2.0]: https://github.com/ddepolo/Wister/releases/tag/v0.2.0
 [0.1.0]: https://github.com/ddepolo/Wister/releases/tag/v0.1.0

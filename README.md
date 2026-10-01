@@ -9,14 +9,14 @@
 
 La transcripción la hace [Whisper](https://github.com/openai/whisper) (vía [whisper.cpp](https://github.com/ggml-org/whisper.cpp)) **en tu PC**: el audio no sale de tu computadora, no hay cuentas ni suscripción, y no hay telemetría. La red se usa solamente para bajar el modelo de voz, y solo cuando lo pedís.
 
-> **Estado: 0.3.0.** Funciona y se usa a diario, pero es una versión temprana: todavía puede cambiar bastante. Ver el [roadmap](#roadmap).
+> **Estado: 0.4.0.** Funciona y se usa a diario, pero es una versión temprana: todavía puede cambiar bastante. Ver el [roadmap](#roadmap).
 
 ## Qué hace
 
 - **Push-to-talk global**: `Ctrl` + `Shift` izquierdos por defecto, configurable (`Ctrl`, `Shift` o `Alt` de cualquier lado, y teclas F).
 - **Pega en cualquier aplicación** y después restaura lo que tenías en el portapapeles, incluso imágenes. El texto dictado no queda en el historial de `Win+V`.
 - **Rápido**: con GPU, el texto aparece unos 250 ms después de soltar el atajo.
-- **Funciona con o sin GPU**: aprovecha la placa de video con Vulkan (NVIDIA, AMD o Intel), y si no hay, usa el procesador.
+- **Funciona con o sin GPU**: aprovecha la placa de video con Vulkan (NVIDIA, AMD o Intel), y si no hay, usa el procesador. Un solo instalador para todas las PCs, y se puede elegir el procesador a mano.
 - **Onda en pantalla** mientras grabás, en una pastilla chiquita que nunca le saca el foco a la app donde estás escribiendo.
 - **Asistente de primer uso**: idioma, descarga del modelo, prueba del micrófono y un primer dictado de prueba.
 - **Estadísticas de uso**: palabras dictadas hoy, en la semana y en total, tiempo ahorrado contra tipear, días seguidos y velocidad.
@@ -125,7 +125,7 @@ docs/                 arquitectura y mediciones
 
 **Próximo**
 - Instaladores compilados en GitHub y firmados, para que Windows no avise que el editor es desconocido.
-- Elegir a mano si Whisper usa la placa de video o el procesador, para las PCs donde la GPU integrada es más lenta.
+- Tema claro, oscuro o automático, y el idioma desde la bandeja.
 
 **Más adelante**
 - Modo manos libres (tocar para empezar y para terminar).

@@ -9,14 +9,14 @@
 
 Transcription runs **on your PC** with [Whisper](https://github.com/openai/whisper) (through [whisper.cpp](https://github.com/ggml-org/whisper.cpp)). Your audio never leaves your computer: no accounts, no subscription, no telemetry. The network is only used to download the speech model, and only when you ask for it.
 
-> **Status: 0.3.0.** It works and is used daily, but it is an early release and may still change significantly.
+> **Status: 0.4.0.** It works and is used daily, but it is an early release and may still change significantly.
 
 ## Features
 
 - Global push-to-talk hotkey (left `Ctrl` + `Shift` by default; configurable).
 - Pastes into any app and then restores your previous clipboard (images included), without leaving the dictated text in the `Win+V` history.
 - Fast: with a GPU, text appears about 250 ms after releasing the hotkey.
-- Runs on the GPU through Vulkan (NVIDIA, AMD, Intel) or on the CPU.
+- Runs on the GPU through Vulkan (NVIDIA, AMD, Intel) or on the CPU, from a single installer.
 - A small waveform overlay that never steals focus from the app you are typing in.
 - First-run wizard: language, model download, microphone test and a first dictation.
 - Local dictation history (SQLite) with search, copy and delete; it can be turned off and wiped.

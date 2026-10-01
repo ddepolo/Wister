@@ -40,13 +40,11 @@ Principios que no se negocian:
 
 ## Estado
 
-**Versión 0.3.0**: dictado push-to-talk completo (atajo, grabación, transcripción, pegado) con VAD, overlay, ventana con barra lateral (Inicio con estadísticas, Historial en SQLite, Diccionario con vocabulario y reemplazos, Configuración), asistente de primer uso, micrófono y su volumen (también desde la bandeja), registro de funcionamiento, prueba de rendimiento y exportar diagnóstico, actualización con un botón y dos instaladores NSIS (Vulkan y solo CPU) en GitHub Releases; desde la 0.4.0, uno solo. El detalle está en `CHANGELOG.md`.
+**Versión 0.4.0**: dictado push-to-talk completo (atajo, grabación, transcripción, pegado) con VAD, overlay, ventana con barra lateral (Inicio con estadísticas, Historial en SQLite, Diccionario con vocabulario, reemplazos y comandos de voz, Configuración), asistente de primer uso, micrófono y su volumen (también desde la bandeja), copiar el último dictado desde la bandeja, registro de funcionamiento, prueba de rendimiento y exportar diagnóstico, aviso de RAM al elegir un modelo, actualización con un botón y un solo instalador NSIS en GitHub Releases (Vulkan, con la CPU si no hay drivers o si se apaga "Usar la placa de video"). El detalle está en `CHANGELOG.md`.
 
 Cancelar un dictado con `Esc` ya funciona: cualquier otra tecla apretada mientras se graba lo cancela.
 
-Pendiente para la 0.4.0, en orden aproximado de prioridad:
-
-Hecho sin publicar (ver `CHANGELOG.md`): despertar la GPU mientras se habla, copiar el último dictado desde la bandeja, "No poner punto al final", comandos de voz listos, el aviso de RAM al elegir un modelo y el instalador único con "Usar la placa de video".
+Pendiente para la 0.5.0, en orden aproximado de prioridad:
 
 1. **Tema claro / oscuro / automático** en Configuración (hoy sigue el modo de apps de Windows).
 2. **Idioma en la bandeja**, como el micrófono.
