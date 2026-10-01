@@ -76,9 +76,6 @@ enum Command {
         /// Fuerza CPU aunque el binario tenga soporte de GPU.
         #[arg(long)]
         cpu: bool,
-        /// Ventana de Whisper ajustada al largo del audio (experimental).
-        #[arg(long)]
-        ventana_ajustada: bool,
         /// Segundos de espera antes de cada medición, para ver si la GPU tarda más
         /// después de estar quieta (como entre dictados).
         #[arg(long, default_value_t = 0)]
@@ -109,9 +106,6 @@ struct SttArgs {
     /// Transcribe solo los tramos con voz (Silero VAD), como la app.
     #[arg(long)]
     vad: bool,
-    /// Ventana de Whisper ajustada al largo del audio (experimental).
-    #[arg(long)]
-    ventana_ajustada: bool,
 }
 
 impl SttArgs {
@@ -120,7 +114,6 @@ impl SttArgs {
             language: self.lang.clone(),
             initial_prompt: self.prompt.clone(),
             threads: self.threads.unwrap_or_else(stt::default_threads),
-            fit_audio_ctx: self.ventana_ajustada,
         }
     }
 
@@ -177,7 +170,6 @@ fn main() -> Result<()> {
             lang,
             threads,
             cpu,
-            ventana_ajustada,
             pausa,
             despertar,
         } => {
@@ -185,7 +177,6 @@ fn main() -> Result<()> {
                 language: lang,
                 initial_prompt: None,
                 threads: threads.unwrap_or_else(stt::default_threads),
-                fit_audio_ctx: ventana_ajustada,
             };
             bench(
                 models,

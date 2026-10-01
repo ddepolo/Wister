@@ -33,6 +33,7 @@ Principios que no se negocian:
 | Insertar texto | Portapapeles + `Ctrl+V` con `SendInput`, restaurando el contenido anterior y excluyéndolo del historial de `Win+V` | Rápido y respeta Unicode |
 | Overlay | Ventana Tauri transparente con `WS_EX_NOACTIVATE`, mostrada con `ShowWindow` nativo | No puede robarle el foco a la app destino |
 | Verificación de modelos | **SHA-1** publicado en `models/README.md` de whisper.cpp | Es el hash oficial que existe; no inventar otros |
+| Ventana del codificador | **30 s completos** (sin `audio_ctx`) | Achicarla al largo del audio era 2,4–3,2× más rápido en CPU, pero con `turbo` escribía cualquier cosa y en GPU compilaba shaders por tamaño. Descartado |
 | Sampling | Greedy (`best_of: 1`) | Para dictado alcanza y es bastante más rápido que beam search |
 | Modelos | `base`, `small`, `large-v3-turbo-q5_0`, `large-v3-turbo`; **sin `tiny`** | `tiny` transcribe muy mal en español. Recomendado: `turbo-q5_0` con GPU, `small` sin GPU |
 
@@ -44,14 +45,12 @@ Cancelar un dictado con `Esc` ya funciona: cualquier otra tecla apretada mientra
 
 Pendiente para la 0.4.0, en orden aproximado de prioridad:
 
-Hecho sin publicar (ver `CHANGELOG.md`): despertar la GPU mientras se habla, copiar el último dictado desde la bandeja, "No poner punto al final" y comandos de voz listos.
+Hecho sin publicar (ver `CHANGELOG.md`): despertar la GPU mientras se habla, copiar el último dictado desde la bandeja, "No poner punto al final", comandos de voz listos y el aviso de RAM al elegir un modelo.
 
-1. **Ventana de audio ajustada** (`audio_ctx`): descartada para dictar (con `turbo` escribe cualquier cosa y en GPU compila shaders por tamaño). Falta ver en la notebook, con `small`, qué dice la columna de la prueba de rendimiento; si no sirve, sacar la columna antes de publicar.
-2. **Tema claro / oscuro / automático** en Configuración (hoy sigue el modo de apps de Windows).
-3. **Idioma en la bandeja**, como el micrófono.
-4. **Avisar si un modelo no entra en la RAM** antes de descargarlo (con 8 GB, `large-v3-turbo` sin cuantizar puede poner la PC muy lenta).
-5. **Modo manos libres**: tocar el atajo para empezar y otra vez para terminar. Toca `hotkey::Detector`, que es delicado.
-6. **Instaladores compilados en GitHub Actions y firmados** con SignPath Foundation (gratis para proyectos libres; firma solo lo compilado en CI). Arrancar la postulación temprano, porque tarda.
+1. **Tema claro / oscuro / automático** en Configuración (hoy sigue el modo de apps de Windows).
+2. **Idioma en la bandeja**, como el micrófono.
+3. **Modo manos libres**: tocar el atajo para empezar y otra vez para terminar. Toca `hotkey::Detector`, que es delicado.
+4. **Instaladores compilados en GitHub Actions y firmados** con SignPath Foundation (gratis para proyectos libres; firma solo lo compilado en CI). Arrancar la postulación temprano, porque tarda.
 
 En espera: elegir CPU o GPU a mano. En la notebook de prueba la GPU integrada fue 2,6 veces más rápida que la CPU, así que por ahora no hace falta; se retoma si la prueba de rendimiento muestra un caso contrario.
 

@@ -265,6 +265,7 @@
           <span class="muted derecha">{m.mb} MB</span>
         </label>
         <div class="nota muted">{m.nota}</div>
+        {#if m.aviso_ram}<div class="nota aviso-ram">{m.aviso_ram}</div>{/if}
         {#if descarga && !descarga.error}
           <div class="progreso">
             <div style="width: {descarga.porcentaje ?? 0}%"></div>
@@ -534,6 +535,9 @@
   }
   .nota {
     margin: 2px 0 0 24px;
+  }
+  .aviso-ram {
+    color: var(--naranja);
   }
   .descargar {
     margin: 6px 0 0 24px;

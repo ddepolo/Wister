@@ -14,6 +14,8 @@ pub struct Model {
     /// Nombre corto que se usa en la CLI (`small`, `large-v3-turbo-q5_0`, ...).
     pub name: &'static str,
     pub size_mb: u32,
+    /// Memoria aproximada que ocupa cargado: el archivo más los buffers de whisper.cpp.
+    pub memory_mb: u32,
     /// SHA-1 publicado en `models/README.md` de whisper.cpp.
     pub sha1: &'static str,
     pub note: &'static str,
@@ -35,6 +37,13 @@ impl Model {
     pub fn is_downloaded(&self) -> bool {
         self.path().map(|p| p.is_file()).unwrap_or(false)
     }
+
+    /// Si entra cómodo en una PC con `ram_mb` de RAM (0 si no se sabe). Windows y los
+    /// programas abiertos ya usan la mitad o más: un modelo que pide más de un cuarto
+    /// de la RAM hace que el sistema empiece a usar el disco y se vuelva muy lento.
+    pub fn fits_in_ram(&self, ram_mb: u64) -> bool {
+        ram_mb == 0 || u64::from(self.memory_mb) * 4 <= ram_mb
+    }
 }
 
 /// Modelos multilingües (sirven para español). `tiny` no está a propósito: en las
@@ -44,24 +53,28 @@ pub const CATALOG: &[Model] = &[
     Model {
         name: "base",
         size_mb: 142,
+        memory_mb: 400,
         sha1: "465707469ff3a37a2b9b8d8f89f2f99de7299dac",
         note: "rápido pero se equivoca más; para PCs viejas",
     },
     Model {
         name: "small",
         size_mb: 466,
+        memory_mb: 850,
         sha1: "55356645c2b361a969dfd0ef2c5a50d530afd8d5",
         note: "buena calidad; el recomendado si no hay GPU",
     },
     Model {
         name: "large-v3-turbo-q5_0",
         size_mb: 547,
+        memory_mb: 1100,
         sha1: "e050f7970618a659205450ad97eb95a18d69c9ee",
         note: "la mejor calidad por MB; el recomendado con GPU",
     },
     Model {
         name: "large-v3-turbo",
         size_mb: 1536,
+        memory_mb: 2100,
         sha1: "4af2b29d7ec73d781377bfd1758ca957a807e941",
         note: "el más pesado; solo para placas de video potentes",
     },
@@ -207,5 +220,19 @@ mod tests {
             assert!(find(m.name).is_ok());
         }
         assert!(find("inexistente").is_err());
+    }
+
+    #[test]
+    fn el_modelo_grande_no_entra_comodo_en_8_gb() {
+        // Windows informa algo menos que lo instalado: 8 GB son unos 7.600 MB.
+        let ram = 7600;
+        assert!(find("large-v3-turbo-q5_0").unwrap().fits_in_ram(ram));
+        assert!(!find("large-v3-turbo").unwrap().fits_in_ram(ram));
+        assert!(find("large-v3-turbo").unwrap().fits_in_ram(16 * 1024));
+    }
+
+    #[test]
+    fn sin_saber_la_ram_no_se_avisa() {
+        assert!(CATALOG.iter().all(|m| m.fits_in_ram(0)));
     }
 }

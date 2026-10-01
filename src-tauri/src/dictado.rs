@@ -114,11 +114,23 @@ pub fn estado_actual(estado: tauri::State<EstadoActual>) -> Estado {
 
 /// Modelo por defecto según los resultados de la Fase 0 (ver docs/fase-0.md).
 pub fn modelo_por_defecto() -> &'static str {
-    if stt::gpu_available() {
-        "large-v3-turbo-q5_0"
-    } else {
-        "small"
-    }
+    elegir_por_defecto(stt::gpu_available(), crate::sistema::ram_mb())
+}
+
+/// `turbo-q5_0` con GPU y `small` sin GPU; si no entra en la RAM, el mejor que entre.
+fn elegir_por_defecto(gpu: bool, ram_mb: u64) -> &'static str {
+    let preferido = if gpu { "large-v3-turbo-q5_0" } else { "small" };
+    let catalogo = models::CATALOG;
+    let hasta = catalogo
+        .iter()
+        .position(|m| m.name == preferido)
+        .unwrap_or(0);
+    catalogo[..=hasta]
+        .iter()
+        .rev()
+        .find(|m| m.fits_in_ram(ram_mb))
+        .unwrap_or(&catalogo[0])
+        .name
 }
 
 pub fn iniciar(app: AppHandle, mensajes: Receiver<Mensaje>, config: Config) -> Result<()> {
@@ -783,5 +795,24 @@ fn publicar(app: &AppHandle, estado: Estado) {
         Estado::Grabando if con_overlay => overlay::mostrar(app),
         Estado::Transcribiendo => {}
         _ => overlay::ocultar(app),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn con_ram_de_sobra_se_recomienda_segun_la_gpu() {
+        assert_eq!(elegir_por_defecto(true, 16 * 1024), "large-v3-turbo-q5_0");
+        assert_eq!(elegir_por_defecto(false, 16 * 1024), "small");
+        // Sin saber la RAM, lo mismo.
+        assert_eq!(elegir_por_defecto(true, 0), "large-v3-turbo-q5_0");
+    }
+
+    #[test]
+    fn con_poca_ram_se_recomienda_uno_que_entre() {
+        assert_eq!(elegir_por_defecto(true, 4 * 1024), "small");
+        assert_eq!(elegir_por_defecto(false, 1024), "base");
     }
 }

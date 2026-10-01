@@ -70,6 +70,8 @@ export type Modelo = {
   nota: string;
   descargado: boolean;
   recomendado: boolean;
+  /** Si no entra cómodo en la RAM de esta PC, por qué. */
+  aviso_ram: string | null;
 };
 
 /** Un dictado guardado en el historial (`historial::Dictado`). */
@@ -113,10 +115,6 @@ export type Medicion = {
   transcripcion_ms: number;
   aciertos: number;
   texto: string;
-  /** Lo mismo con la ventana ajustada al largo del audio. */
-  ajustada_ms: number;
-  ajustada_aciertos: number;
-  ajustada_texto: string;
   error: string | null;
 };
 

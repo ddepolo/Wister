@@ -158,6 +158,7 @@
               <strong>{m.nombre}</strong>
               {#if m.recomendado}<span class="insignia">Recomendado</span>{/if}
               <span class="nota">{m.nota}</span>
+              {#if m.aviso_ram}<span class="nota aviso-ram">{m.aviso_ram}</span>{/if}
             </span>
             <span class="tam">{m.descargado ? "Descargado ✓" : `${m.mb} MB`}</span>
           </label>
@@ -322,6 +323,10 @@
   .nota {
     font-size: 12px;
     opacity: 0.7;
+  }
+  .aviso-ram {
+    color: var(--naranja);
+    opacity: 1;
   }
   .error {
     color: #dc2626;

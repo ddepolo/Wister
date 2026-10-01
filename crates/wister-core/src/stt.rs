@@ -19,9 +19,6 @@ pub struct Options {
     /// Texto que orienta a Whisper: nombres propios, jerga, estilo de puntuación.
     pub initial_prompt: Option<String>,
     pub threads: usize,
-    /// Achicar la ventana del codificador al largo del audio (ver `audio_ctx_for`).
-    /// Es bastante más rápido con audios cortos, pero puede bajar la calidad.
-    pub fit_audio_ctx: bool,
 }
 
 impl Default for Options {
@@ -30,7 +27,6 @@ impl Default for Options {
             language: "es".into(),
             initial_prompt: None,
             threads: default_threads(),
-            fit_audio_ctx: false,
         }
     }
 }
@@ -70,19 +66,6 @@ pub fn is_hallucination(text: &str) -> bool {
         .collect();
     let normalizado = normalizado.split_whitespace().collect::<Vec<_>>().join(" ");
     FRASES_FANTASMA.contains(&normalizado.as_str())
-}
-
-/// Ventana del codificador (`audio_ctx`) para un audio de `samples` muestras a 16 kHz.
-///
-/// Whisper siempre codifica 30 s (1500 posiciones, 50 por segundo) aunque el audio dure
-/// 3: con un audio corto, casi todo el trabajo es sobre silencio. Se deja un margen y se
-/// redondea a múltiplos de 64 para que no cambie el tamaño en cada dictado.
-pub fn audio_ctx_for(samples: usize) -> i32 {
-    const COMPLETA: usize = 1500;
-    const MINIMA: usize = 128;
-    const MARGEN: usize = 64;
-    let posiciones = samples.div_ceil(WHISPER_SAMPLE_RATE as usize / 50);
-    ((posiciones + MARGEN).next_multiple_of(64)).clamp(MINIMA, COMPLETA) as i32
 }
 
 /// Todos los núcleos lógicos hasta 8; más allá whisper.cpp casi no escala.
@@ -221,12 +204,6 @@ impl Engine {
         } else {
             (&audio.samples[..]).into()
         };
-        // 0 es la ventana completa. Se fija en cada llamada: el estado se reutiliza.
-        params.set_audio_ctx(if opts.fit_audio_ctx {
-            audio_ctx_for(samples.len())
-        } else {
-            0
-        });
 
         self.state
             .full(params, &samples)
@@ -253,18 +230,6 @@ mod tests {
         assert!(is_hallucination("¡Suscríbete!"));
         assert!(is_hallucination("  Thank you.  "));
         assert!(is_hallucination("Subtítulos por la comunidad de Amara.org"));
-    }
-
-    #[test]
-    fn la_ventana_ajustada_cubre_el_audio_con_margen() {
-        let segundos = |s: usize| s * WHISPER_SAMPLE_RATE as usize;
-        // 1 s son 50 posiciones: con el margen y el mínimo, 128.
-        assert_eq!(audio_ctx_for(segundos(1)), 128);
-        // 11 s son 550: con el margen, 614, y redondeado, 640.
-        assert_eq!(audio_ctx_for(segundos(11)), 640);
-        // Desde unos 28 s ya es la ventana completa.
-        assert_eq!(audio_ctx_for(segundos(29)), 1500);
-        assert_eq!(audio_ctx_for(segundos(60)), 1500);
     }
 
     #[test]

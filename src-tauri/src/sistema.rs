@@ -38,6 +38,15 @@ impl Sistema {
     }
 }
 
+/// RAM instalada en MB; 0 si no se sabe. `WISTER_RAM_MB` la simula, para probar los
+/// avisos de memoria en una PC con mucha RAM.
+pub fn ram_mb() -> u64 {
+    std::env::var("WISTER_RAM_MB")
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or_else(plataforma::ram_mb)
+}
+
 /// Variante del binario y la GPU que usa Whisper.
 pub fn descripcion_gpu() -> String {
     match stt::gpu_backend() {

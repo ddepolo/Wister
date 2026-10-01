@@ -126,9 +126,6 @@
         <th title="Lo que se espera después de soltar el atajo">Espera</th>
         <th title="Palabras de la frase que transcribió bien">Aciertos</th>
         <th title="Lo que tarda en cargarse al elegirlo">Carga</th>
-        <th title="Experimental: Whisper procesa solo el largo del dictado en vez de 30 s">
-          Ventana ajustada
-        </th>
       </tr>
     </thead>
     <tbody>
@@ -137,14 +134,11 @@
           <td>{m.modelo}</td>
           <td>{m.gpu ? "GPU" : "CPU"}</td>
           {#if m.error}
-            <td colspan="4" class="error">falló</td>
+            <td colspan="3" class="error">falló</td>
           {:else}
             <td>{tiempo(m.transcripcion_ms)}</td>
             <td>{m.aciertos}%</td>
             <td>{tiempo(m.carga_ms)}</td>
-            <td class:peor={m.ajustada_aciertos < m.aciertos}>
-              {tiempo(m.ajustada_ms)} · {m.ajustada_aciertos}%
-            </td>
           {/if}
         </tr>
       {/each}
@@ -157,9 +151,6 @@
         <li>
           <strong>{m.modelo} ({m.gpu ? "GPU" : "CPU"}):</strong>
           {m.error ?? m.texto}
-          {#if !m.error && m.ajustada_texto !== m.texto}
-            <br /><em>Con la ventana ajustada:</em> {m.ajustada_texto}
-          {/if}
         </li>
       {/each}
     </ul>
@@ -246,9 +237,6 @@
   }
   th:first-child {
     cursor: default;
-  }
-  td.peor {
-    color: var(--naranja);
   }
   details {
     margin-bottom: 10px;

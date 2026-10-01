@@ -123,7 +123,7 @@ Si al final el texto es solo una de las frases típicas (`stt::is_hallucination`
 - El modelo se carga una vez al arrancar, o al cambiarlo desde la configuración, y queda en memoria. Al cambiarlo se libera el anterior antes de cargar el nuevo, para no ocupar la memoria de la GPU dos veces.
 - **Calentamiento**: la primera transcripción con Vulkan compila shaders (unos 7 s la primera vez; después el driver los cachea). Al cargar el modelo se transcribe 1 s de silencio para que no lo pague el primer dictado. Se hace dos veces: la segunda mide cuánto cuesta un trabajo corto ya compilado.
 - **Despertar la GPU**: después de ~30 s quieta, una RTX 5070 Ti tardaba 2 a 3 veces más (60 ms → 180–270 ms; medido con `wister bench --pausa 30`). Al confirmarse la grabación (300 ms), si Whisper estuvo 5 s o más sin usarse, se transcribe 1 s de silencio mientras el usuario habla; con eso la medición vuelve a ~55–80 ms (`--despertar`). Solo si el calentamiento medido fue de menos de 300 ms: en una GPU integrada lenta ese trabajo tarda más de un segundo y demoraría un dictado corto.
-- **Ventana ajustada** (`audio_ctx`, `Options::fit_audio_ctx`): Whisper codifica siempre 30 s. Achicar la ventana al largo del audio fue 2,4–3,2 veces más rápido en CPU, pero con `large-v3-turbo` escribió texto sin sentido (hasta en chino) y en la GPU obligó a compilar shaders para cada tamaño. No se usa al dictar: la prueba de rendimiento la mide aparte, para decidir con datos de PCs lentas.
+- **Ventana de 30 s completa**: Whisper codifica siempre 30 s aunque el dictado dure 3. Se probó achicarla al largo del audio (`audio_ctx`): fue 2,4–3,2 veces más rápido en CPU, pero con `large-v3-turbo` escribió texto sin sentido (hasta en chino) y en la GPU obligó a compilar shaders para cada tamaño. Se descartó.
 - Sampling greedy (`best_of: 1`): para dictado alcanza y es bastante más rápido que beam search.
 - Con menos de 1 s de audio Whisper tiende a inventar, así que se completa con silencio hasta 1 s.
 - Backends: CPU (con AVX2), **Vulkan** (NVIDIA, AMD, Intel) y CUDA como opción de compilación. Vulkan es el de por defecto porque las DLL de CUDA pesan cientos de MB.
@@ -200,6 +200,7 @@ Si un dictado va a la misma ventana que el anterior antes de 60 s, se le antepon
 ### Modelos (`wister-core/src/models.rs`)
 
 - Catálogo embebido con nombre, tamaño y el SHA-1 que publica whisper.cpp en su `models/README.md`.
+- Cada modelo tiene una estimación de la memoria que ocupa cargado (`memory_mb`). Si pasa de un cuarto de la RAM, la UI avisa antes de descargarlo y el recomendado baja al mejor que entre. Para probarlo en una PC con mucha RAM, `WISTER_RAM_MB` simula otra cantidad.
 - Descarga reanudable (`.part` + header `Range`) desde Hugging Face, sin timeout, y verificación del hash al terminar.
 - `tiny` no está: en español transcribe demasiado mal.
 - Es el único código que usa la red.

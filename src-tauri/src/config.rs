@@ -162,11 +162,14 @@ pub struct ModeloInfo {
     nota: &'static str,
     descargado: bool,
     recomendado: bool,
+    /// Si no entra cómodo en la RAM de esta PC, por qué.
+    aviso_ram: Option<String>,
 }
 
 #[tauri::command]
 pub fn listar_modelos() -> Vec<ModeloInfo> {
     let recomendado = dictado::modelo_por_defecto();
+    let ram_mb = crate::sistema::ram_mb();
     models::CATALOG
         .iter()
         .map(|m| ModeloInfo {
@@ -175,8 +178,16 @@ pub fn listar_modelos() -> Vec<ModeloInfo> {
             nota: m.note,
             descargado: m.is_downloaded(),
             recomendado: m.name == recomendado,
+            aviso_ram: (!m.fits_in_ram(ram_mb)).then(|| aviso_ram(m.memory_mb, ram_mb)),
         })
         .collect()
+}
+
+fn aviso_ram(necesita_mb: u32, ram_mb: u64) -> String {
+    let necesita = format!("{:.1}", f64::from(necesita_mb) / 1024.0).replace('.', ",");
+    // Windows informa algo menos que lo instalado (8 GB quedan en 7,4): se redondea para arriba.
+    let tiene = (ram_mb as f64 / 1024.0).ceil();
+    format!("Usa unos {necesita} GB de RAM y esta PC tiene {tiene} GB: puede ponerla muy lenta.")
 }
 
 #[derive(Serialize)]
@@ -323,6 +334,14 @@ pub fn cambiar_autoarranque(app: AppHandle, activo: bool) -> Result<(), String> 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn el_aviso_de_ram_muestra_los_gb_como_en_windows() {
+        assert_eq!(
+            aviso_ram(2100, 7600),
+            "Usa unos 2,1 GB de RAM y esta PC tiene 8 GB: puede ponerla muy lenta."
+        );
+    }
 
     #[test]
     fn config_vacia_usa_valores_por_defecto() {
